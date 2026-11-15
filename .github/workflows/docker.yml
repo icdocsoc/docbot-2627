@@ -48,3 +48,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Redeploy the DigitalOcean App Platform worker once the new image is on GHCR.
+  # App Platform can't watch GHCR itself, so we trigger a deployment (which re-pulls :latest).
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions: {}
+    concurrency: deploy-docbot
+    steps:
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Trigger App Platform deployment
+        run: doctl apps create-deployment "$APP_ID" --force-rebuild --wait
+        env:
+          APP_ID: e7c30070-eb80-4478-8ee9-c388be3bb6da
