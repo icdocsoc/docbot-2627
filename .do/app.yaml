@@ -1,5 +1,8 @@
 name: docbot
 region: lon
+# DISCORD_TOKEN is an app-level secret, set in the DO dashboard (Settings > App-Level
+# Environment Variables, encrypted). Don't redeclare it on the worker: a component-level
+# entry overrides the app-level one, and an empty one made the bot crash on startup.
 workers:
   - name: docbot
     image:
@@ -9,8 +12,3 @@ workers:
       tag: latest
     instance_count: 1
     instance_size_slug: apps-s-1vcpu-0.5gb
-    envs:
-      - key: DISCORD_TOKEN
-        scope: RUN_TIME
-        type: SECRET
-        # Value intentionally not stored here; set it in the DO dashboard.
