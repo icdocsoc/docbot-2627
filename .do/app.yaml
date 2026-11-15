@@ -1,0 +1,17 @@
+name: docbot
+region: lon
+workers:
+  - name: docbot
+    dockerfile_path: Dockerfile
+    github:
+      repo: icdocsoc/docbot-2627
+      branch: main
+      deploy_on_push: true
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - key: DISCORD_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        # Value is intentionally not stored here. Set it in the DO dashboard
+        # (App -> Settings -> docbot component -> Environment Variables).
