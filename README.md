@@ -26,6 +26,16 @@ DISCORD_TOKEN=your-token scala-cli run .
 
 Never commit the token.
 
+## Docker
+
+Every push to `main` builds and publishes an image to GitHub Container Registry (`ghcr.io/icdocsoc/docbot-2627`, tagged `latest` and by commit SHA; `v*` tags get a version tag too).
+
+```bash
+docker run -d --restart unless-stopped -e DISCORD_TOKEN=your-token ghcr.io/icdocsoc/docbot-2627:latest
+```
+
+To build locally: `docker build -t docbot .`
+
 ## Tests
 
 ```bash
