@@ -14,7 +14,7 @@ object Quotes:
     // Monty Python
     "'Tis but a typo! ...No wait, it's a full-on misspelling. It's {correct}.",
     "This spelling is no more. It has ceased to be. It's expired and gone to meet its maker. It's an ex-spelling. It's {correct}.",
-    "We are the Knights Who Say \"DoCSoc\"! ...and we demand you spell it correctly, or we shall demand another shrubbery. It's {correct}.",
+    "We are the Knights Who Say {correct}! ...and we demand you spell it correctly, or we shall demand another shrubbery. It's {correct}.",
     "NOBODY expects the Spelling Inquisition! Our chief weapon is correction... correction and fear... It's {correct}. Our *two* weapons...",
     "\"Romanes eunt domus\"? No! {correct}. Now write it out a hundred times before sunrise, or I'll cut your tongue out. Hmm? Well? Off you go.",
     // Pop culture, across the eras

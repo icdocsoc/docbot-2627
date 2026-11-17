@@ -20,7 +20,9 @@ object Listener extends ListenerAdapter:
   override def onMessageReceived(event: MessageReceivedEvent): Unit =
     if !event.getAuthor.isBot then
       val msg = event.getMessage
-      if Snark.misspelt(msg.getContentRaw) then
-        msg.reply(Snark.nextReply(event.getAuthor.getAsMention))
+      // One reply per message, even if it misspells several names.
+      Corrections.firstMisspelt(msg.getContentRaw).foreach { c =>
+        msg.reply(c.reply(event.getAuthor.getAsMention))
           .mentionRepliedUser(false)
           .queue()
+      }

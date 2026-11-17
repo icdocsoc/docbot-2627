@@ -7,9 +7,11 @@ DoCBoT is meant to grow: this is the home for whatever small, useful, or silly t
 ## What it does today
 
 ### Spelling police
-If anyone writes "DoCSoc" with the wrong capitalisation (`docsoc`, `DoCSoC`, `DOCSOC`, ...), DoCBoT replies to their message with a snarky correction. It picks a random reply from a pool of 90-odd quotes, never the same one twice in a row. The pool covers Monty Python, MCU, Star Trek, Brooklyn Nine-Nine, assorted pop culture, famous musicals, Shakespeare, famous lines from British and Western history (Caesar, Churchill, Nelson, and friends), Stargate, and James Bond.
+If anyone writes "DoCSoc" with the wrong capitalisation (`docsoc`, `DoCSoC`, `DOCSOC`, ...), or misspells "ICHack" (`IC Hack`, `ic-hack`, `I.C. Hack`, `ichack`, `ICHACK`, `IC Hack 26`, ...; `ICHack26` is fine), DoCBoT replies to their message with a snarky correction. It picks a random reply from a pool of 90-odd quotes, never the same one twice in a row. The pool covers Monty Python, MCU, Star Trek, Brooklyn Nine-Nine, assorted pop culture, famous musicals, Shakespeare, famous lines from British and Western history (Caesar, Churchill, Nelson, and friends), Stargate, and James Bond.
 
-Known limits: it only checks capitalisation (not typos like "docsock"), URLs are ignored, but it still matches inside longer words.
+A message that misspells both names gets a single reply, correcting the first one found (DoCSoc, then ICHack).
+
+Known limits: it only checks capitalisation and spacing/punctuation (not typos like "docsock"), and URLs are ignored. "DoCSoc" still matches inside longer words, but "ICHack" is only flagged as a whole word-ish token (not after or before a letter, so "epic hack" and "ichacks" are left alone).
 
 Invisible/zero-width characters (e.g. `doc\u200Bsoc`) are stripped before checking, so they can't be used to dodge the police.
 
@@ -47,9 +49,10 @@ scala-cli test .
 ## Project layout
 
 - `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`.
-- `src/Snark.scala`: the spelling check. Pure logic, no Discord code, so it's easy to test.
+- `src/Corrections.scala`: the `Correction` type (correct spelling + pattern) and the DoCSoc and ICHack instances, plus the shared normalisation (invisible characters, URLs). Pure logic, no Discord code, so it's easy to test. To police another name, add a `Correction` to `Corrections.all`.
+- `src/Snark.scala`: thin DoCSoc-specific wrapper around `Corrections.DoCSoc`.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
-- `src/Snark.test.scala`: tests for the above.
+- `src/Snark.test.scala`, `src/Corrections.test.scala`: tests for the above.
 
 ## Adding a feature
 
