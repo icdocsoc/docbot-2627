@@ -49,9 +49,16 @@ scala-cli test .
 ## Project layout
 
 - `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`.
-- `src/Corrections.scala`: the `Correction` type (correct spelling + pattern) and the DoCSoc and ICHack instances, plus the shared normalisation (invisible characters, URLs). Pure logic, no Discord code, so it's easy to test. To police another name, add a `Correction` to `Corrections.all`.
+- `src/Correction.scala`: the generic mechanism. The `Correction` type (correct spelling + pattern), the shared normalisation (invisible characters, URLs) and `Correction.firstMisspelt`, which finds the first matching correction in a given list. Pure logic, no Discord code, and it knows nothing about specific names.
+- `src/Corrections.scala`: the setup. Only the concrete definitions (DoCSoc and IC Hack, each with its pattern and a comment explaining it) and the ordered `Corrections.all` list that the bot enforces.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
-- `src/Corrections.test.scala`: tests for the above (corrections, normalisation, and the quote pool).
+- `src/Correction.test.scala`: tests for the mechanism, using small local corrections (normalisation, URL and invisible-character handling, first-match ordering).
+- `src/Corrections.test.scala`: tests for the concrete DoCSoc and IC Hack behaviour and their order in `Corrections.all`.
+- `src/Quotes.test.scala`: tests for the quote pool and `Quotes.pick`.
+
+## Adding a correction
+
+To police another name, edit only `src/Corrections.scala`: define a `Correction("Right Spelling", "(?i)regex".r)` (the regex should find every spelling of the name, right or wrong; anything that isn't exactly the right spelling gets flagged), add it to `Corrections.all` (earlier entries win when a message breaks several), and add a behaviour table for it in `src/Corrections.test.scala`. `Bot.scala` and `Correction.scala` need no changes.
 
 ## Adding a feature
 

@@ -1,5 +1,6 @@
 package docsoc
 
+/** Behaviour of the concrete corrections (DoCSoc, IC Hack) and their ordering in `Corrections.all`. */
 class CorrectionsTests extends munit.FunSuite:
   test("flags every spelling of IC Hack except exactly IC Hack") {
     for s <- List(
@@ -29,33 +30,6 @@ class CorrectionsTests extends munit.FunSuite:
     assert(Corrections.ICHack.misspelt("I\u00ADC-Hack"))
     assert(Corrections.ICHack.misspelt("IC\u200BHack"))
     assert(!Corrections.ICHack.misspelt("https://ic\u200Bhack.org"))
-  }
-  test("corrections are independent") {
-    assert(!Corrections.ICHack.misspelt("docsoc"))
-    assert(!Corrections.DoCSoc.misspelt("ichack"))
-  }
-  test("firstMisspelt finds the first matching correction") {
-    assertEquals(Corrections.firstMisspelt("DoCSoc and IC Hack"), None)
-    assertEquals(Corrections.firstMisspelt("ic hack"), Some(Corrections.ICHack))
-    assertEquals(Corrections.firstMisspelt("ICHack26"), Some(Corrections.ICHack))
-    assertEquals(Corrections.firstMisspelt("docsoc"), Some(Corrections.DoCSoc))
-    assertEquals(Corrections.firstMisspelt("ic hack and docsoc"), Some(Corrections.DoCSoc))
-  }
-  test("ICHack replies contain **IC Hack** and never DoCSoc") {
-    val rng = scala.util.Random(7)
-    for _ <- 1 to 2000 do
-      val r = Quotes.pick(s"**${Corrections.ICHack.correct}**", "<@1>", rng)
-      assert(r.contains("**IC Hack**"), r)
-      assert(!r.contains("DoCSoc"), r)
-  }
-  test("reply uses the correction's own spelling") {
-    for _ <- 1 to 200 do
-      assert(Corrections.ICHack.reply("<@1>").contains("**IC Hack**"))
-      assert(!Corrections.ICHack.reply("<@1>").contains("DoCSoc"))
-  }
-  test("no template hard-codes a name") {
-    assert(Quotes.templates.forall(!_.contains("DoCSoc")))
-    assert(Quotes.templates.forall(!_.contains("ICHack") && !_.contains("IC Hack")))
   }
   test("DoCSoc flags misspellings") {
     for s <- List("docsoc", "DOCSOC", "DoCSoC", "Docsoc", "join docsoc today!", "DoCSoc and docsoc") do
@@ -91,36 +65,36 @@ class CorrectionsTests extends munit.FunSuite:
     for s <- List("https://github.com/ic\u200Bdocsoc", "ht\u200Btps://x/docsoc", "www.doc\u200Bsoc.co.uk") do
       assert(!Corrections.DoCSoc.misspelt(s), s)
   }
-  test("every character in Invisibles is stripped") {
-    assertEquals(Corrections.Invisibles.size, 18)
-    for c <- Corrections.Invisibles do assert(Corrections.DoCSoc.misspelt(s"doc${c}soc"), f"U+${c.toInt}%04X")
+  test("every invisible character is stripped when checking DoCSoc") {
+    for c <- Correction.Invisibles do assert(Corrections.DoCSoc.misspelt(s"doc${c}soc"), f"U+${c.toInt}%04X")
   }
-  test("has plenty of quotes, all with a {correct} placeholder") {
-    assert(Quotes.templates.size >= 80)
-    assert(Quotes.templates.forall(_.contains("{correct}")))
+  test("DoCSoc and IC Hack corrections are independent") {
+    assert(!Corrections.ICHack.misspelt("docsoc"))
+    assert(!Corrections.DoCSoc.misspelt("ichack"))
   }
-  test("no duplicate templates") {
-    assertEquals(Quotes.templates.distinct.size, Quotes.templates.size)
+  test("all lists DoCSoc then IC Hack") {
+    assertEquals(Corrections.all, List(Corrections.DoCSoc, Corrections.ICHack))
   }
-  test("pick fills in every placeholder") {
-    val rng = scala.util.Random(1)
+  test("firstMisspelt over all finds the first matching correction") {
+    val first = Correction.firstMisspelt(Corrections.all, _)
+    assertEquals(first("DoCSoc and IC Hack"), None)
+    assertEquals(first("ic hack"), Some(Corrections.ICHack))
+    assertEquals(first("ICHack26"), Some(Corrections.ICHack))
+    assertEquals(first("docsoc"), Some(Corrections.DoCSoc))
+    assertEquals(first("ic hack and docsoc"), Some(Corrections.DoCSoc))
+  }
+  test("ICHack replies contain **IC Hack** and never DoCSoc") {
+    val rng = scala.util.Random(7)
     for _ <- 1 to 2000 do
-      val r = Quotes.pick("**DoCSoc**", "<@123>", rng)
-      assert(!r.contains("{"), r)
-      assert(!r.contains("}"), r)
-      assert(r.contains("**DoCSoc**"), r)
+      val r = Quotes.pick(s"**${Corrections.ICHack.correct}**", "<@1>", rng)
+      assert(r.contains("**IC Hack**"), r)
+      assert(!r.contains("DoCSoc"), r)
+  }
+  test("IC Hack reply uses the correction's own spelling") {
+    for _ <- 1 to 200 do
+      assert(Corrections.ICHack.reply("<@1>").contains("**IC Hack**"))
+      assert(!Corrections.ICHack.reply("<@1>").contains("DoCSoc"))
   }
   test("DoCSoc reply contains the correct spelling") {
     for _ <- 1 to 200 do assert(Corrections.DoCSoc.reply("<@1>").contains("**DoCSoc**"))
-  }
-  test("never the same quote twice in a row") {
-    for seed <- 1 to 5 do
-      val rng = scala.util.Random(seed)
-      val picks = (1 to 5000).map(_ => Quotes.pick("{correct}", "{user}", rng))
-      assert(picks.zip(picks.tail).forall(_ != _))
-  }
-  test("every quote is reachable") {
-    val rng = scala.util.Random(42)
-    val seen = (1 to 20000).map(_ => Quotes.pick("{correct}", "{user}", rng)).toSet
-    assertEquals(seen, Quotes.templates.toSet)
   }

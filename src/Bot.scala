@@ -21,7 +21,7 @@ object Listener extends ListenerAdapter:
     if !event.getAuthor.isBot then
       val msg = event.getMessage
       // One reply per message, even if it misspells several names.
-      Corrections.firstMisspelt(msg.getContentRaw).foreach { c =>
+      Correction.firstMisspelt(Corrections.all, msg.getContentRaw).foreach { c =>
         msg.reply(c.reply(event.getAuthor.getAsMention))
           .mentionRepliedUser(false)
           .queue()
