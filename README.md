@@ -11,6 +11,8 @@ If anyone writes "DoCSoc" with the wrong capitalisation (`docsoc`, `DoCSoC`, `DO
 
 Known limits: it only checks capitalisation (not typos like "docsock"), URLs are ignored, but it still matches inside longer words.
 
+Invisible/zero-width characters (e.g. `doc\u200Bsoc`) are stripped before checking, so they can't be used to dodge the police.
+
 ## Running it
 
 Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK.
