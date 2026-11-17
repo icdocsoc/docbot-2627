@@ -50,9 +50,8 @@ scala-cli test .
 
 - `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`.
 - `src/Corrections.scala`: the `Correction` type (correct spelling + pattern) and the DoCSoc and ICHack instances, plus the shared normalisation (invisible characters, URLs). Pure logic, no Discord code, so it's easy to test. To police another name, add a `Correction` to `Corrections.all`.
-- `src/Snark.scala`: thin DoCSoc-specific wrapper around `Corrections.DoCSoc`.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
-- `src/Snark.test.scala`, `src/Corrections.test.scala`: tests for the above.
+- `src/Corrections.test.scala`: tests for the above (corrections, normalisation, and the quote pool).
 
 ## Adding a feature
 
