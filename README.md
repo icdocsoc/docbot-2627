@@ -7,7 +7,7 @@ DoCBoT is meant to grow: this is the home for whatever small, useful, or silly t
 ## What it does today
 
 ### Spelling police
-If anyone writes "DoCSoc" with the wrong capitalisation (`docsoc`, `DoCSoC`, `DOCSOC`, ...), DoCBoT replies to their message with a snarky correction. It rotates through a pool of replies (Monty Python, MCU, Star Trek, Brooklyn Nine-Nine, and assorted pop culture) so it doesn't repeat itself.
+If anyone writes "DoCSoc" with the wrong capitalisation (`docsoc`, `DoCSoC`, `DOCSOC`, ...), DoCBoT replies to their message with a snarky correction. It picks a random reply from a pool of 90-odd quotes, never the same one twice in a row. The pool covers Monty Python, MCU, Star Trek, Brooklyn Nine-Nine, assorted pop culture, famous musicals, Shakespeare, famous lines from British and Western history (Caesar, Churchill, Nelson, and friends), Stargate, and James Bond.
 
 Known limits: it only checks capitalisation (not typos like "docsock"), URLs are ignored, but it still matches inside longer words.
 
@@ -47,7 +47,8 @@ scala-cli test .
 ## Project layout
 
 - `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`.
-- `src/Snark.scala`: the spelling check and the reply pool. Pure logic, no Discord code, so it's easy to test.
+- `src/Snark.scala`: the spelling check. Pure logic, no Discord code, so it's easy to test.
+- `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
 - `src/Snark.test.scala`: tests for the above.
 
 ## Adding a feature
