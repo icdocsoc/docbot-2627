@@ -13,13 +13,21 @@ object Snark:
   // URLs (http(s)://... or www....) are ignored. \S+ also swallows Discord's `<https://...>` wrapper.
   private val Url = "(?i)\\b(?:https?://|www\\.)\\S+".r
 
-  // Invisible/zero-width/bidi-control characters that can be slipped into a word: ZWSP, ZWNJ, ZWJ, word joiner,
-  // BOM, soft hyphen, LRM, RLM, U+202A-U+202E, U+2066-U+2069, Mongolian vowel separator.
-  private val Invisibles = "[\\u200B\\u200C\\u200D\\u2060\\uFEFF\\u00AD\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\u180E]".r
+  // Invisible/zero-width/bidi-control characters that can be slipped into a word. A Set[Char] is itself a Char => Boolean,
+  // so normalise can use it directly as a filter predicate.
+  private[docsoc] val Invisibles: Set[Char] =
+    Set(
+      '\u200B', '\u200C', '\u200D', '\u2060', // zero-width space, non-joiner, joiner, word joiner
+      '\uFEFF', // BOM / zero-width no-break space
+      '\u00AD', // soft hyphen
+      '\u200E', '\u200F', // LRM, RLM
+      '\u180E' // Mongolian vowel separator
+    ) ++ ('\u202A' to '\u202E') // bidi embeddings/overrides
+      ++ ('\u2066' to '\u2069') // bidi isolates
 
   /** Strip invisible characters first (so they can't split a word or hide inside a URL), then URLs. */
   private def normalise(text: String): String =
-    Url.replaceAllIn(Invisibles.replaceAllIn(text, ""), " ")
+    Url.replaceAllIn(text.filterNot(Invisibles), " ")
 
   /** True if the text (ignoring URLs and invisible characters) contains a "docsoc" that isn't exactly "DoCSoc". */
   def misspelt(text: String): Boolean =
