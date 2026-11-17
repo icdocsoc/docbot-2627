@@ -30,9 +30,10 @@ object Corrections:
   // Any case-insensitive "docsoc" occurrence. Trailing letters (e.g. "docsocs") are left alone.
   val DoCSoc: Correction = Correction("DoCSoc", "(?i)docsoc".r)
 
-  // "IC Hack" in any case, optionally split by spaces, dots, hyphens or underscores (IC-Hack, I.C. Hack, IC  Hack).
-  // Not inside another word: no letter before ("epic hack") or after ("ichacks"). "ICHack26" is fine.
-  val ICHack: Correction = Correction("ICHack", "(?i)(?<!\\p{L})i[\\s._-]*c[\\s._-]*hack(?!\\p{L})".r)
+  // The only accepted spelling is exactly "IC Hack". The pattern finds it in any case, with any run of spaces, dots,
+  // hyphens or underscores (or none) between the parts (ICHack, ic-hack, I.C. Hack, IC  Hack), so variants get flagged.
+  // Not inside another word: no letter before ("epic hack") or after ("ichacks"). Digits may follow: "ICHack26" is flagged.
+  val ICHack: Correction = Correction("IC Hack", "(?i)(?<!\\p{L})i[\\s._-]*c[\\s._-]*hack(?!\\p{L})".r)
 
   val all: List[Correction] = List(DoCSoc, ICHack)
 
