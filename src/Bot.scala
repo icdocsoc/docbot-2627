@@ -12,7 +12,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent
 
   JDABuilder
     .createLight(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
-    .addEventListeners(Listener)
+    .addEventListeners(Listener, SecretSantaListener.fromEnvironment())
     .build()
 
 /** To add a feature: write another handler and call it from onMessageReceived. */
