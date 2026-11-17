@@ -9,7 +9,7 @@ DoCBoT is meant to grow: this is the home for whatever small, useful, or silly t
 ### Spelling police
 If anyone writes "DoCSoc" with the wrong capitalisation (`docsoc`, `DoCSoC`, `DOCSOC`, ...), DoCBoT replies to their message with a snarky correction. It rotates through a pool of replies (Monty Python, MCU, Star Trek, Brooklyn Nine-Nine, and assorted pop culture) so it doesn't repeat itself.
 
-Known limits: it only checks capitalisation (not typos like "docsock"), and it also matches inside URLs and longer words.
+Known limits: it only checks capitalisation (not typos like "docsock"), URLs are ignored, but it still matches inside longer words.
 
 ## Running it
 

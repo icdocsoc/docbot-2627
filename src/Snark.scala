@@ -10,9 +10,12 @@ object Snark:
   // Any case-insensitive "docsoc" occurrence. Trailing letters (e.g. "docsocs") are left alone.
   private val Pattern = "(?i)docsoc".r
 
-  /** True if the text contains at least one "docsoc" that isn't exactly "DoCSoc". */
+  // URLs (http(s)://... or www....) are ignored. \S+ also swallows Discord's `<https://...>` wrapper.
+  private val Url = "(?i)\\b(?:https?://|www\\.)\\S+".r
+
+  /** True if the text (ignoring URLs) contains at least one "docsoc" that isn't exactly "DoCSoc". */
   def misspelt(text: String): Boolean =
-    Pattern.findAllIn(text).exists(_ != Correct)
+    Pattern.findAllIn(Url.replaceAllIn(text, " ")).exists(_ != Correct)
 
   /** Replies, round-robin. `{user}` is replaced with a mention of the offender. */
   val replies: Vector[String] = Vector(
