@@ -23,6 +23,18 @@ class SnarkTests extends munit.FunSuite:
     for s <- List("docsoc https://github.com/icdocsoc", "<https://x/docsoc> join docsoc", "www.docsoc.co.uk DOCSOC") do
       assert(Snark.misspelt(s), s)
   }
+  test("flags misspellings split by invisible characters") {
+    for s <- List("doc\u200Bsoc", "Do\u200BCSoc", "d\u200Docsoc", "doc\u00ADsoc", "DOC\uFEFFSOC", "d\u2060o\u200Cc\u200Es\u202Eoc") do
+      assert(Snark.misspelt(s), s)
+  }
+  test("does not flag a correct DoCSoc containing invisible characters") {
+    for s <- List("Do\u200BCSoc", "D\u200Do\u200CC\u2060S\u00ADoc", "\uFEFFDoCSoc", "DoCSoc\u200B") do
+      assert(!Snark.misspelt(s), s)
+  }
+  test("still ignores URLs containing invisible characters") {
+    for s <- List("https://github.com/ic\u200Bdocsoc", "ht\u200Btps://x/docsoc", "www.doc\u200Bsoc.co.uk") do
+      assert(!Snark.misspelt(s), s)
+  }
   test("has at least 10 replies that all contain the correct spelling") {
     assert(Snark.replies.size >= 10)
     assert(Snark.replies.forall(_.contains(Snark.Correct)))
