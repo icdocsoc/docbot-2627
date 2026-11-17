@@ -39,12 +39,32 @@ class SnarkTests extends munit.FunSuite:
     assertEquals(Snark.Invisibles.size, 18)
     for c <- Snark.Invisibles do assert(Snark.misspelt(s"doc${c}soc"), f"U+${c.toInt}%04X")
   }
-  test("has at least 10 replies that all contain the correct spelling") {
-    assert(Snark.replies.size >= 10)
-    assert(Snark.replies.forall(_.contains(Snark.Correct)))
+  test("has plenty of quotes, all with a {correct} placeholder") {
+    assert(Snark.replies.size >= 80)
+    assert(Snark.replies.forall(_.contains("{correct}")))
   }
-  test("rotates through all replies") {
-    val n = Snark.replies.size
-    val seen = (1 to n).map(_ => Snark.nextReply("@x")).toSet
-    assertEquals(seen.size, n)
+  test("no duplicate templates") {
+    assertEquals(Quotes.templates.distinct.size, Quotes.templates.size)
+  }
+  test("pick fills in every placeholder") {
+    val rng = scala.util.Random(1)
+    for _ <- 1 to 2000 do
+      val r = Quotes.pick("**DoCSoc**", "<@123>", rng)
+      assert(!r.contains("{"), r)
+      assert(!r.contains("}"), r)
+      assert(r.contains("**DoCSoc**"), r)
+  }
+  test("nextReply contains the correct spelling") {
+    for _ <- 1 to 200 do assert(Snark.nextReply("<@1>").contains("**DoCSoc**"))
+  }
+  test("never the same quote twice in a row") {
+    for seed <- 1 to 5 do
+      val rng = scala.util.Random(seed)
+      val picks = (1 to 5000).map(_ => Quotes.pick("{correct}", "{user}", rng))
+      assert(picks.zip(picks.tail).forall(_ != _))
+  }
+  test("every quote is reachable") {
+    val rng = scala.util.Random(42)
+    val seen = (1 to 20000).map(_ => Quotes.pick("{correct}", "{user}", rng)).toSet
+    assertEquals(seen, Quotes.templates.toSet)
   }
