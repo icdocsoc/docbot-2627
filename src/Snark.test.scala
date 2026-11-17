@@ -35,6 +35,10 @@ class SnarkTests extends munit.FunSuite:
     for s <- List("https://github.com/ic\u200Bdocsoc", "ht\u200Btps://x/docsoc", "www.doc\u200Bsoc.co.uk") do
       assert(!Snark.misspelt(s), s)
   }
+  test("every character in Invisibles is stripped") {
+    assertEquals(Snark.Invisibles.size, 18)
+    for c <- Snark.Invisibles do assert(Snark.misspelt(s"doc${c}soc"), f"U+${c.toInt}%04X")
+  }
   test("has plenty of quotes, all with a {correct} placeholder") {
     assert(Snark.replies.size >= 80)
     assert(Snark.replies.forall(_.contains("{correct}")))
