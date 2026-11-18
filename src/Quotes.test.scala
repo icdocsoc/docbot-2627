@@ -3,7 +3,7 @@ package docsoc
 class QuotesTests extends munit.FunSuite:
   test("no template hard-codes a name") {
     assert(Quotes.templates.forall(!_.contains("DoCSoc")))
-    assert(Quotes.templates.forall(!_.contains("ICHack") && !_.contains("IC Hack")))
+    assert(Quotes.templates.forall(t => !t.contains("ICHack") && !t.contains("IC Hack")))
   }
   test("has plenty of quotes, all with a {correct} placeholder") {
     assert(Quotes.templates.size >= 80)
