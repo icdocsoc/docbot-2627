@@ -62,12 +62,31 @@ class CorrectionsTests extends munit.FunSuite:
     assert(Corrections.ICHack.misspelt("IC\u200BHack"))
     assert(!Corrections.ICHack.misspelt("https://ic\u200Bhack.org"))
   }
-  test("DoCSoc flags misspellings") {
-    for s <- List("docsoc", "DOCSOC", "DoCSoC", "Docsoc", "join docsoc today!", "DoCSoc and docsoc") do
-      assert(Corrections.DoCSoc.misspelt(s), s)
+  test("DoCSoc flags every capitalisation except exactly DoCSoc and exactly docsoc") {
+    for s <- List(
+        "DOCSOC",
+        "DoCSoC",
+        "Docsoc",
+        "docSoc",
+        "dOcsoc",
+        "DocSoc",
+        "join DOCSOC today!",
+        "DoCSoc and DOCSOC",
+        "docsoc and Docsoc"
+      )
+    do assert(Corrections.DoCSoc.misspelt(s), s)
   }
-  test("DoCSoc leaves correct spelling and unrelated text alone") {
-    for s <- List("DoCSoc", "hello DoCSoc!", "nothing to see", "") do assert(!Corrections.DoCSoc.misspelt(s), s)
+  test("DoCSoc leaves DoCSoc, docsoc and unrelated text alone") {
+    for s <- List(
+        "DoCSoc",
+        "hello DoCSoc!",
+        "docsoc",
+        "join docsoc today!",
+        "DoCSoc and docsoc",
+        "nothing to see",
+        ""
+      )
+    do assert(!Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc ignores misspellings inside URLs") {
     for s <- List(
@@ -80,12 +99,16 @@ class CorrectionsTests extends munit.FunSuite:
     do assert(!Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc still flags a misspelling outside a URL") {
-    for s <- List("docsoc https://github.com/icdocsoc", "<https://x/docsoc> join docsoc", "www.docsoc.co.uk DOCSOC") do
+    for s <- List("DOCSOC https://github.com/icdocsoc", "<https://x/docsoc> join DOCSOC", "www.docsoc.co.uk Docsoc") do
       assert(Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc flags misspellings split by invisible characters") {
-    for s <- List("doc\u200Bsoc", "d\u200Docsoc", "doc\u00ADsoc", "DOC\uFEFFSOC", "d\u2060o\u200Cc\u200Es\u202Eoc") do
+    for s <- List("Doc\u200Bsoc", "D\u200Docsoc", "Doc\u00ADsoc", "DOC\uFEFFSOC", "D\u2060o\u200Cc\u200Es\u202Eoc") do
       assert(Corrections.DoCSoc.misspelt(s), s)
+  }
+  test("DoCSoc does not flag a lowercase docsoc containing invisible characters") {
+    for s <- List("doc\u200Bsoc", "d\u200Docsoc", "doc\u00ADsoc", "\uFEFFdocsoc", "docsoc\u200B") do
+      assert(!Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc does not flag a correct DoCSoc containing invisible characters") {
     for s <- List("Do\u200BCSoc", "D\u200Do\u200CC\u2060S\u00ADoc", "\uFEFFDoCSoc", "DoCSoc\u200B") do
@@ -96,7 +119,7 @@ class CorrectionsTests extends munit.FunSuite:
       assert(!Corrections.DoCSoc.misspelt(s), s)
   }
   test("every invisible character is stripped when checking DoCSoc") {
-    for c <- Correction.Invisibles do assert(Corrections.DoCSoc.misspelt(s"doc${c}soc"), f"U+${c.toInt}%04X")
+    for c <- Correction.Invisibles do assert(Corrections.DoCSoc.misspelt(s"Doc${c}soc"), f"U+${c.toInt}%04X")
   }
   test("DoCSoc and IC Hack corrections are independent") {
     assert(!Corrections.ICHack.misspelt("docsoc"))
@@ -111,8 +134,12 @@ class CorrectionsTests extends munit.FunSuite:
     assertEquals(first("ic hack"), None)
     assertEquals(first("ic hack and ICHack"), Some(Corrections.ICHack))
     assertEquals(first("ICHack26"), Some(Corrections.ICHack))
-    assertEquals(first("docsoc"), Some(Corrections.DoCSoc))
-    assertEquals(first("ic hack and docsoc"), Some(Corrections.DoCSoc))
+    assertEquals(first("docsoc"), None)
+    assertEquals(first("DOCSOC"), Some(Corrections.DoCSoc))
+    assertEquals(first("ic hack and docsoc"), None)
+    assertEquals(first("docsoc and ICHack"), Some(Corrections.ICHack))
+    assertEquals(first("ic hack and DOCSOC"), Some(Corrections.DoCSoc))
+    assertEquals(first("ICHack and DOCSOC"), Some(Corrections.DoCSoc))
     assertEquals(first("ic hack and Ic Hack"), Some(Corrections.ICHack))
   }
   test("ICHack replies contain **IC Hack** and never DoCSoc") {
