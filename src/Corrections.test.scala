@@ -54,7 +54,7 @@ class CorrectionsTests extends munit.FunSuite:
       assert(Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc flags misspellings split by invisible characters") {
-    for s <- List("doc\u200Bsoc", "Do\u200BCSoc", "d\u200Docsoc", "doc\u00ADsoc", "DOC\uFEFFSOC", "d\u2060o\u200Cc\u200Es\u202Eoc") do
+    for s <- List("doc\u200Bsoc", "d\u200Docsoc", "doc\u00ADsoc", "DOC\uFEFFSOC", "d\u2060o\u200Cc\u200Es\u202Eoc") do
       assert(Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc does not flag a correct DoCSoc containing invisible characters") {
