@@ -60,6 +60,8 @@ A single workflow, `.github/workflows/ci.yml` (named **CI**), runs on pushes to 
 2. **Docker (build and push)** builds the image, and pushes it to GHCR except on pull requests. It only runs if all three jobs pass.
 3. **Deploy (DigitalOcean)** redeploys the app on pushes to `main`.
 
+Supply chain: third-party actions are pinned to full commit SHAs (the trailing comment is the tag) and the Dockerfile base images to digests; `.github/dependabot.yml` opens weekly grouped PRs to bump both. Workflow permissions default to none and each job grants only what it needs. scala-cli dependencies in `project.scala` are not covered by Dependabot, so watch for scala-cli's "outdated" hints. The scala-cli version is pinned in both `ci.yml` and the `Dockerfile`; keep them in sync.
+
 CI passes `--server=false` to scala-cli: a fresh runner gains nothing from the Bloop compile server, which only adds a large download and startup time. Locally, leave it on for faster incremental builds.
 
 ## Project layout
