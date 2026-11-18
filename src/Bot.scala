@@ -1,7 +1,6 @@
 package docsoc
 
 import net.dv8tion.jda.api.JDABuilder
-import net.dv8tion.jda.api.entities.Message
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import net.dv8tion.jda.api.requests.GatewayIntent
@@ -22,7 +21,8 @@ object Listener extends ListenerAdapter:
       val msg = event.getMessage
       // One reply per message, even if it misspells several names.
       Correction.firstMisspelt(Corrections.all, msg.getContentRaw).foreach { c =>
-        msg.reply(c.reply(event.getAuthor.getAsMention))
+        msg
+          .reply(c.reply(event.getAuthor.getAsMention))
           .mentionRepliedUser(false)
           .queue()
       }
