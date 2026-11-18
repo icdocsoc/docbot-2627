@@ -1,0 +1,26 @@
+name: Test
+
+# Run as a gate by the Docker workflow, so it isn't triggered on its own (that would run the tests twice).
+on:
+  workflow_call:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: coursier/cache-action@v6
+
+      - uses: coursier/setup-action@v1
+        with:
+          apps: scala-cli
+
+      - run: scala-cli test .
