@@ -56,8 +56,8 @@ Run `fmt` and `fix` before committing. `fix` also removes unused imports and kee
 
 A single workflow, `.github/workflows/ci.yml` (named **CI**), runs on pushes to `main`, `v*` tags and pull requests to `main`:
 
-1. **Check (format, lint, test)** runs `fmt --check`, `fix --check` and `test` (with unused code warnings as errors).
-2. **Docker (build and push)** builds the image, and pushes it to GHCR except on pull requests. It only runs if the check passes.
+1. **Format (scalafmt)**, **Lint (scalafix)** and **Test** run in parallel as separate jobs (`fmt --check`, `fix --check`, and `test` with unused code warnings as errors).
+2. **Docker (build and push)** builds the image, and pushes it to GHCR except on pull requests. It only runs if all three jobs pass.
 3. **Deploy (DigitalOcean)** redeploys the app on pushes to `main`.
 
 CI passes `--server=false` to scala-cli: a fresh runner gains nothing from the Bloop compile server, which only adds a large download and startup time. Locally, leave it on for faster incremental builds.
