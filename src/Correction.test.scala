@@ -14,10 +14,9 @@ class CorrectionTests extends munit.FunSuite:
     assert(!Foo.misspelt(""))
   }
   test("URLs are ignored, text outside them is not") {
-    for s <- List("https://x/foo", "http://x/foo", "www.foo.com/path", "<https://x/foo>", "see HTTPS://FOO.example/x") do
-      assert(!Foo.misspelt(s), s)
-    for s <- List("foo https://x/foo", "<https://x/foo> join foo", "www.foo.com FOO") do
-      assert(Foo.misspelt(s), s)
+    for s <- List("https://x/foo", "http://x/foo", "www.foo.com/path", "<https://x/foo>", "see HTTPS://FOO.example/x")
+    do assert(!Foo.misspelt(s), s)
+    for s <- List("foo https://x/foo", "<https://x/foo> join foo", "www.foo.com FOO") do assert(Foo.misspelt(s), s)
   }
   test("invisible characters split nothing and hide nothing") {
     for s <- List("fo\u200Bo", "f\u200Do\u200Co", "fo\u00ADo", "FO\uFEFFO", "f\u2060o\u200Eo") do

@@ -32,7 +32,7 @@ Never commit the token.
 
 ## Docker
 
-Every push to `main` builds and publishes an image to GitHub Container Registry (`ghcr.io/icdocsoc/docbot-2627`, tagged `latest` and by commit SHA; `v*` tags get a version tag too).
+Every push to `main` (once the checks pass) builds and publishes an image to GitHub Container Registry (`ghcr.io/icdocsoc/docbot-2627`, tagged `latest` and by commit SHA; `v*` tags get a version tag too).
 
 ```bash
 docker run -d --restart unless-stopped -e DISCORD_TOKEN=your-token ghcr.io/icdocsoc/docbot-2627:latest
@@ -40,11 +40,29 @@ docker run -d --restart unless-stopped -e DISCORD_TOKEN=your-token ghcr.io/icdoc
 
 To build locally: `docker build -t docbot .`
 
-## Tests
+## Development
 
 ```bash
-scala-cli test .
+scala-cli test .                    # run the tests
+scala-cli fmt .                     # format (scalafmt, see .scalafmt.conf)
+scala-cli fmt --check .             # check formatting without changing files
+scala-cli --power fix .             # lint and rewrite (scalafix, see .scalafix.conf)
+scala-cli --power fix --check .     # check without changing files
 ```
+
+Run `fmt` and `fix` before committing. `fix` also removes unused imports and keeps the `//> using` directives in `project.scala` tidy.
+
+### CI
+
+A single workflow, `.github/workflows/ci.yml` (named **CI**), runs on pushes to `main`, `v*` tags and pull requests to `main`:
+
+1. **Format (scalafmt)**, **Lint (scalafix)** and **Test** run in parallel as separate jobs (`fmt --check`, `fix --check`, and `test` with unused code warnings as errors).
+2. **Docker (build and push)** builds the image, and pushes it to GHCR except on pull requests. It only runs if all three jobs pass.
+3. **Deploy (DigitalOcean)** redeploys the app on pushes to `main`.
+
+Supply chain: third-party actions are pinned to full commit SHAs (the trailing comment is the tag) and the Dockerfile base images to digests; `.github/dependabot.yml` opens weekly grouped PRs to bump both. Workflow permissions default to none and each job grants only what it needs. scala-cli dependencies in `project.scala` are not covered by Dependabot, so watch for scala-cli's "outdated" hints. The scala-cli version is pinned in both `ci.yml` and the `Dockerfile`; keep them in sync.
+
+CI passes `--server=false` to scala-cli: a fresh runner gains nothing from the Bloop compile server, which only adds a large download and startup time. Locally, leave it on for faster incremental builds.
 
 ## Project layout
 

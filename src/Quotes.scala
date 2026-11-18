@@ -116,7 +116,7 @@ object Quotes:
     "Never in the field of human conflict was so much owed by so many to so few capital letters. It's {correct}.",
     "England expects that every man will do his duty, {user}. Spelling {correct} included.",
     "I have the heart and stomach of a king, said Elizabeth I at Tilbury, and I have the spelling of one too. It's {correct}.",
-    "Will no one rid me of this meddlesome typo? (Henry II, allegedly, about a priest.) It's {correct}.",    
+    "Will no one rid me of this meddlesome typo? (Henry II, allegedly, about a priest.) It's {correct}.",
     "Ask not what {correct} can do for you, {user}; ask what you can do for {correct}. Start with the capitals.",
     "Peace for our time? Not with that spelling, {user}. It's {correct}.",
     "Eureka! I have found it: {correct}.",

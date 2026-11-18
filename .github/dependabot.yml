@@ -1,0 +1,20 @@
+# Keeps the SHA-pinned actions and the Dockerfile base images up to date.
+# Note: scala-cli dependencies (project.scala `//> using dep`) are not covered by Dependabot; update them by hand
+# (scala-cli prints "outdated" hints on build). The scala-cli version is pinned in both ci.yml and the Dockerfile.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]

@@ -4,8 +4,23 @@ package docsoc
 class CorrectionsTests extends munit.FunSuite:
   test("flags every spelling of IC Hack except exactly IC Hack") {
     for s <- List(
-        "ICHack", "ichack", "ICHACK", "ic hack", "Ic Hack", "IC  Hack", "IC-Hack", "ic-hack", "IC_Hack", "I.C. Hack",
-        "ICHack26", "ICHack27", "IC hack", "IC HACK", "come to ichack!", "ICHack and ichack", "see you at IC\tHack",
+        "ICHack",
+        "ichack",
+        "ICHACK",
+        "ic hack",
+        "Ic Hack",
+        "IC  Hack",
+        "IC-Hack",
+        "ic-hack",
+        "IC_Hack",
+        "I.C. Hack",
+        "ICHack26",
+        "ICHack27",
+        "IC hack",
+        "IC HACK",
+        "come to ichack!",
+        "ICHack and ichack",
+        "see you at IC\tHack",
         "IC Hack and ichack"
       )
     do assert(Corrections.ICHack.misspelt(s), s)
@@ -15,8 +30,8 @@ class CorrectionsTests extends munit.FunSuite:
       assert(!Corrections.ICHack.misspelt(s), s)
   }
   test("IC Hack is not flagged inside other words") {
-    for s <- List("chic hack", "epic hack", "Epic Hack", "ichacks", "ICHacks", "ichacker", "topic-hack", "logic hack") do
-      assert(!Corrections.ICHack.misspelt(s), s)
+    for s <- List("chic hack", "epic hack", "Epic Hack", "ichacks", "ICHacks", "ichacker", "topic-hack", "logic hack")
+    do assert(!Corrections.ICHack.misspelt(s), s)
   }
   test("IC Hack misspellings inside URLs are ignored, outside are not") {
     for s <- List("https://ichack.org", "<https://ichack.org/ic-hack>", "www.ichack.org", "HTTP://IC-HACK.example") do
@@ -36,8 +51,7 @@ class CorrectionsTests extends munit.FunSuite:
       assert(Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc leaves correct spelling and unrelated text alone") {
-    for s <- List("DoCSoc", "hello DoCSoc!", "nothing to see", "") do
-      assert(!Corrections.DoCSoc.misspelt(s), s)
+    for s <- List("DoCSoc", "hello DoCSoc!", "nothing to see", "") do assert(!Corrections.DoCSoc.misspelt(s), s)
   }
   test("DoCSoc ignores misspellings inside URLs") {
     for s <- List(
