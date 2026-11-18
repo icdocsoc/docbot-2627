@@ -2,15 +2,18 @@ package docsoc
 
 import scala.util.matching.Regex
 
-/** A name that must be spelt exactly `correct`. `pattern` finds every spelling of it, right or wrong.
+/** A name that must be spelt exactly `correct` (or exactly one of `alsoAccepted`). `pattern` finds every spelling of
+  * it, right or wrong. Replies always correct to `correct`.
   *
   * This is the generic mechanism; the concrete corrections the bot enforces live in `Corrections`.
   */
-final case class Correction(correct: String, pattern: Regex):
+final case class Correction(correct: String, pattern: Regex, alsoAccepted: Set[String] = Set.empty):
 
-  /** True if the text (ignoring URLs and invisible characters) contains a match that isn't exactly `correct`. */
+  /** True if the text (ignoring URLs and invisible characters) contains a match that is neither `correct` nor one of
+    * `alsoAccepted`, character for character.
+    */
   def misspelt(text: String): Boolean =
-    pattern.findAllIn(Correction.normalise(text)).exists(_ != correct)
+    pattern.findAllIn(Correction.normalise(text)).exists(m => m != correct && !alsoAccepted.contains(m))
 
   /** A random snarky reply (never the same twice in a row) correcting to **correct**, mentioning the offender. */
   def reply(mention: String): String =

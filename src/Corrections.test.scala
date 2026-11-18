@@ -2,13 +2,17 @@ package docsoc
 
 /** Behaviour of the concrete corrections (DoCSoc, IC Hack) and their ordering in `Corrections.all`. */
 class CorrectionsTests extends munit.FunSuite:
-  test("flags every spelling of IC Hack except exactly IC Hack") {
+  test("flags every spelling of IC Hack except exactly IC Hack and exactly ic hack") {
     for s <- List(
         "ICHack",
         "ichack",
         "ICHACK",
-        "ic hack",
         "Ic Hack",
+        "iC hack",
+        "ic  hack",
+        "ic\thack",
+        "ic-hack",
+        "ic_hack",
         "IC  Hack",
         "IC-Hack",
         "ic-hack",
@@ -26,8 +30,20 @@ class CorrectionsTests extends munit.FunSuite:
     do assert(Corrections.ICHack.misspelt(s), s)
   }
   test("leaves exactly IC Hack and unrelated text alone") {
-    for s <- List("IC Hack", "IC Hack 26", "IC Hack, ", "hello IC Hack!", "IC Hack 2026", "nothing to see", "") do
-      assert(!Corrections.ICHack.misspelt(s), s)
+    for s <- List(
+        "IC Hack",
+        "IC Hack 26",
+        "IC Hack, ",
+        "hello IC Hack!",
+        "IC Hack 2026",
+        "ic hack",
+        "see you at ic hack!",
+        "ic hack 26",
+        "IC Hack and ic hack",
+        "nothing to see",
+        ""
+      )
+    do assert(!Corrections.ICHack.misspelt(s), s)
   }
   test("IC Hack is not flagged inside other words") {
     for s <- List("chic hack", "epic hack", "Epic Hack", "ichacks", "ICHacks", "ichacker", "topic-hack", "logic hack")
@@ -36,7 +52,7 @@ class CorrectionsTests extends munit.FunSuite:
   test("IC Hack misspellings inside URLs are ignored, outside are not") {
     for s <- List("https://ichack.org", "<https://ichack.org/ic-hack>", "www.ichack.org", "HTTP://IC-HACK.example") do
       assert(!Corrections.ICHack.misspelt(s), s)
-    for s <- List("ichack https://ichack.org", "<https://ichack.org> join ic hack") do
+    for s <- List("ichack https://ichack.org", "<https://ichack.org> join ichack") do
       assert(Corrections.ICHack.misspelt(s), s)
   }
   test("IC Hack invisible characters are stripped first") {
@@ -92,10 +108,12 @@ class CorrectionsTests extends munit.FunSuite:
   test("firstMisspelt over all finds the first matching correction") {
     val first = Correction.firstMisspelt(Corrections.all, _)
     assertEquals(first("DoCSoc and IC Hack"), None)
-    assertEquals(first("ic hack"), Some(Corrections.ICHack))
+    assertEquals(first("ic hack"), None)
+    assertEquals(first("ic hack and ICHack"), Some(Corrections.ICHack))
     assertEquals(first("ICHack26"), Some(Corrections.ICHack))
     assertEquals(first("docsoc"), Some(Corrections.DoCSoc))
     assertEquals(first("ic hack and docsoc"), Some(Corrections.DoCSoc))
+    assertEquals(first("ic hack and Ic Hack"), Some(Corrections.ICHack))
   }
   test("ICHack replies contain **IC Hack** and never DoCSoc") {
     val rng = scala.util.Random(7)
