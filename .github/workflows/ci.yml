@@ -2,6 +2,7 @@ name: CI
 
 # Third-party actions are pinned to full commit SHAs (the comment is the tag); Dependabot keeps them current.
 # One workflow: format, lint and test run in parallel -> docker (build, push to GHCR) -> deploy (DigitalOcean).
+# Test also measures coverage; a separate, non-blocking job turns it into a run summary and a PR comment.
 on:
   push:
     branches: [main]
@@ -115,7 +116,7 @@ jobs:
       - name: Cache dependencies
         uses: coursier/cache-action@ee0650f98295f27a505e4bfd284c9bfaa913a465 # v9.0.1
         with:
-          extraFiles: project.scala
+          extraFiles: '["project.scala", ".github/coverage/Report.scala"]'
 
       # Same scala-cli version as the Dockerfile.
       - name: Set up scala-cli
@@ -124,8 +125,78 @@ jobs:
           apps: scala-cli:1.19.0
 
       # -Werror turns the -Wunused:all warnings from project.scala into errors.
-      - name: Run tests
-        run: scala-cli test --server=false --scalac-option -Werror .
+      # -coverage-out turns on the Scala 3 compiler's built-in coverage instrumentation, only for this run (never in
+      # project.scala, so the Docker image is not instrumented). The exclude regexes match the path without its
+      # extension: test sources and src/Bot (pure Discord wiring that needs a live Discord connection).
+      - name: Run tests with coverage
+        run: >
+          scala-cli test --server=false --scalac-option -Werror
+          --scalac-option -coverage-out:coverage/data
+          --scalac-option '-coverage-exclude-files:.*\.test,.*/Bot'
+          .
+
+      # The compiler only writes raw scoverage data; this converts it to Cobertura XML and an HTML report.
+      - name: Generate coverage report
+        run: scala-cli run --server=false .github/coverage/Report.scala -- coverage/data . coverage/report
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: coverage/report
+          if-no-files-found: error
+          retention-days: 14
+
+  # Summarise the coverage report on the run page and (same-repo PRs only) in a PR comment. Nothing else depends on
+  # this job, so a failure here (e.g. posting the comment) never blocks the Docker image or the deploy.
+  # It never checks out or runs repository code: it only parses the artifact uploaded by the Test job.
+  coverage:
+    name: Coverage report
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # only used by the PR comment step below
+    steps:
+      - name: Download coverage report
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage-report
+          path: coverage
+
+      # Cobertura XML -> markdown (written to code-coverage-results.md). Report only: it never fails the build.
+      # Green from 80%, yellow from 60%. To enforce a minimum later, set fail_below_min: true (uses the lower threshold).
+      - name: Summarise coverage
+        uses: irongut/CodeCoverageSummary@51cc3a756ddcd398d447c044c02cb6aa83fdae95 # v1.3.0
+        with:
+          filename: coverage/cobertura.xml
+          badge: true
+          format: markdown
+          output: file
+          indicators: true
+          hide_complexity: true
+          fail_below_min: false
+          thresholds: "60 80"
+
+      - name: Compose summary
+        run: |
+          {
+            echo "## Test coverage"
+            echo
+            cat code-coverage-results.md
+            echo
+            echo "Excludes the tests and \`src/Bot.scala\` (Discord wiring). The full HTML report is in the \`coverage-report\` artifact of [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          } > coverage-summary.md
+          cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      # The token is read-only on pull requests from forks, so only comment on PRs from this repository.
+      - name: Comment on pull request
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: coverage
+          path: coverage-summary.md
 
   docker:
     name: Docker (build and push)
