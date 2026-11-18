@@ -32,7 +32,7 @@ Never commit the token.
 
 ## Docker
 
-Every push to `main` builds and publishes an image to GitHub Container Registry (`ghcr.io/icdocsoc/docbot-2627`, tagged `latest` and by commit SHA; `v*` tags get a version tag too).
+Every push to `main` (once the checks pass) builds and publishes an image to GitHub Container Registry (`ghcr.io/icdocsoc/docbot-2627`, tagged `latest` and by commit SHA; `v*` tags get a version tag too).
 
 ```bash
 docker run -d --restart unless-stopped -e DISCORD_TOKEN=your-token ghcr.io/icdocsoc/docbot-2627:latest
@@ -40,11 +40,27 @@ docker run -d --restart unless-stopped -e DISCORD_TOKEN=your-token ghcr.io/icdoc
 
 To build locally: `docker build -t docbot .`
 
-## Tests
+## Development
 
 ```bash
-scala-cli test .
+scala-cli test .                    # run the tests
+scala-cli fmt .                     # format (scalafmt, see .scalafmt.conf)
+scala-cli fmt --check .             # check formatting without changing files
+scala-cli --power fix .             # lint and rewrite (scalafix, see .scalafix.conf)
+scala-cli --power fix --check .     # check without changing files
 ```
+
+Run `fmt` and `fix` before committing. `fix` also removes unused imports and keeps the `//> using` directives in `project.scala` tidy.
+
+### CI
+
+A single workflow, `.github/workflows/ci.yml` (named **CI**), runs on pushes to `main`, `v*` tags and pull requests to `main`:
+
+1. **Check (format, lint, test)** runs `fmt --check`, `fix --check` and `test` (with unused code warnings as errors).
+2. **Docker (build and push)** builds the image, and pushes it to GHCR except on pull requests. It only runs if the check passes.
+3. **Deploy (DigitalOcean)** redeploys the app on pushes to `main`.
+
+CI passes `--server=false` to scala-cli: a fresh runner gains nothing from the Bloop compile server, which only adds a large download and startup time. Locally, leave it on for faster incremental builds.
 
 ## Project layout
 
