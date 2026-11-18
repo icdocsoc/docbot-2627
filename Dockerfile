@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build: package everything into one fat jar ----
-FROM virtuslab/scala-cli:1.5.1 AS build
+FROM virtuslab/scala-cli:1.19.0 AS build
 WORKDIR /src
 COPY project.scala ./
 COPY src ./src
