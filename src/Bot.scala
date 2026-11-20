@@ -1,21 +1,59 @@
 package docsoc
 
 import net.dv8tion.jda.api.JDABuilder
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
+import net.dv8tion.jda.api.interactions.commands.build.{Commands => DiscordCommands}
 import net.dv8tion.jda.api.requests.GatewayIntent
 
-/** Entry point. Run with: DISCORD_TOKEN=... scala-cli run . */
+/** Entry point. Run with: DISCORD_TOKEN=... scala-cli run .
+  *
+  * Slash commands are registered globally (they can take a while to appear). Set DISCORD_GUILD_ID to register them in
+  * that one server instead, where they update instantly: handy while testing.
+  */
 @main def run(): Unit =
   val token = sys.env.getOrElse("DISCORD_TOKEN", sys.error("Set the DISCORD_TOKEN env var"))
 
-  JDABuilder
+  // Fail fast if a command spec and its handler have drifted apart, or the specs break Discord's rules.
+  val problems = Commands.validate(Commands.all)
+  require(problems.isEmpty, s"Invalid slash commands: ${problems.mkString("; ")}")
+  val mismatched = Listener.handlers.keySet.diff(Commands.names) ++ Commands.names.diff(Listener.handlers.keySet)
+  require(mismatched.isEmpty, s"Slash commands without a spec or a handler: ${mismatched.mkString(", ")}")
+
+  val jda = JDABuilder
     .createLight(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
     .addEventListeners(Listener)
     .build()
 
-/** To add a feature: write another handler and call it from onMessageReceived. */
+  val commandData = Commands.all.map(c => DiscordCommands.slash(c.name, c.description))
+  sys.env.get("DISCORD_GUILD_ID").filter(_.nonEmpty) match
+    case Some(guildId) =>
+      jda.awaitReady()
+      val guild = Option(jda.getGuildById(guildId))
+        .getOrElse(sys.error(s"DISCORD_GUILD_ID $guildId: the bot is not in that server"))
+      guild.updateCommands().addCommands(commandData*).queue()
+    case None =>
+      jda.updateCommands().addCommands(commandData*).queue()
+
+/** To add a message feature: write another handler and call it from onMessageReceived. To add a slash command: see
+  * `Commands.scala`, then add a handler to `handlers` below.
+  */
 object Listener extends ListenerAdapter:
+  type Handler = SlashCommandInteractionEvent => Unit
+
+  /** Slash command handlers by command name. Must have exactly the names in `Commands.all` (checked by a test and at
+    * startup).
+    */
+  val handlers: Map[String, Handler] = Map(
+    "ping" -> (event => event.reply("Pong!").setEphemeral(true).queue())
+  )
+
+  override def onSlashCommandInteraction(event: SlashCommandInteractionEvent): Unit =
+    handlers.get(event.getName) match
+      case Some(handler) => handler(event)
+      case None          => event.reply("Unknown command").setEphemeral(true).queue()
+
   override def onMessageReceived(event: MessageReceivedEvent): Unit =
     if !event.getAuthor.isBot then
       val msg = event.getMessage
