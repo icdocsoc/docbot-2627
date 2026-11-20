@@ -2,7 +2,7 @@
 
 The Discord bot for [DoCSoc](https://github.com/icdocsoc), Imperial College's Department of Computing Society. (Yes, the name is spelt that way on purpose. Please don't tell it.)
 
-DoCBoT is meant to grow: this is the home for whatever small, useful, or silly things we want our Discord server to do. For now it does exactly one thing.
+DoCBoT is meant to grow: this is the home for whatever small, useful, or silly things we want our Discord server to do. For now it polices spelling and has a `/ping` slash command.
 
 ## What it does today
 
@@ -15,6 +15,17 @@ Known limits: it only checks capitalisation and spacing/punctuation (not typos l
 
 Invisible/zero-width characters (e.g. `doc\u200Bsoc`) are stripped before checking, so they can't be used to dodge the police.
 
+### Slash commands
+| Command | What it does |
+| --- | --- |
+| `/ping` | Replies "Pong!" (only visible to you). Proves the slash command wiring works. |
+
+Slash commands need no Message Content intent, but the invite link must include the `applications.commands` scope (alongside `bot`). If the bot is already in your server, re-invite it with that scope added (no need to kick it first), otherwise the commands won't show up.
+
+Commands are registered globally on startup, and Discord can take a while (up to about an hour) to show new or changed global commands. For testing, set the optional `DISCORD_GUILD_ID` env var to a server's ID (Discord's developer mode, then right-click the server, then Copy Server ID) and the commands are registered in just that server instead, where they update instantly. The bot must already be in that server, and with the variable set the commands are not registered globally (clear leftovers from earlier global registrations by restarting without it).
+
+To add a command: add a `CommandSpec(name, description)` to `Commands.all` in `src/Commands.scala`, and a handler with the same name in `Listener.handlers` in `src/Bot.scala`. Tests (and a check at startup) fail if a spec has no handler or the other way round, or if a name or description breaks Discord's rules (name `[\w-]{1,32}` and lowercase, description 1-100 characters, unique names, at most 100 global commands).
+
 ## Running it
 
 Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK.
@@ -22,11 +33,14 @@ Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK.
 1. Create an application at https://discord.com/developers/applications and add a Bot.
 2. Under **Bot → Privileged Gateway Intents**, enable **Message Content Intent**.
 3. Invite it to the server with the `bot` scope and the *Read Messages*, *Send Messages* and *Read Message History* permissions.
-4. Start it:
+4. Add the `applications.commands` scope to the invite too, for the slash commands (see "Slash commands").
+5. Start it:
 
 ```bash
 DISCORD_TOKEN=your-token scala-cli run .
 ```
+
+To register slash commands in one server only (instant updates, for testing), also set `DISCORD_GUILD_ID=your-server-id`.
 
 Never commit the token.
 
@@ -89,7 +103,9 @@ To require a minimum later, set `fail_below_min: true` on the **Summarise covera
 
 ## Project layout
 
-- `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`.
+- `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`: message handlers, and the slash command `handlers` map (keyed by command name).
+- `src/Commands.scala`: the slash command registry. The `CommandSpec` type (name, description), `Commands.all`, and validation of Discord's rules. Pure logic, no Discord code.
+- `src/Commands.test.scala`: tests for the validation rules, the registry, and that every spec has a handler in `Bot.scala`.
 - `src/Correction.scala`: the generic mechanism. The `Correction` type (correct spelling + pattern), the shared normalisation (invisible characters, URLs) and `Correction.firstMisspelt`, which finds the first matching correction in a given list. Pure logic, no Discord code, and it knows nothing about specific names.
 - `src/Corrections.scala`: the setup. Only the concrete definitions (DoCSoc and IC Hack, each with its pattern and a comment explaining it) and the ordered `Corrections.all` list that the bot enforces.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
@@ -104,5 +120,5 @@ To police another name, edit only `src/Corrections.scala`: define a `Correction(
 ## Adding a feature
 
 1. Put the logic in its own file under `src/`, keeping it free of Discord types where you can so it can be unit tested.
-2. Call it from `Listener` in `Bot.scala` (or add another listener, and any extra gateway intents, in `run`).
+2. Call it from `Listener` in `Bot.scala` (or add another listener, and any extra gateway intents, in `run`). For a slash command, add a spec to `Commands.all` and a handler to `Listener.handlers` instead.
 3. Add a section to "What it does today" above.
