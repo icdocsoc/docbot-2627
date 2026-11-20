@@ -24,7 +24,7 @@ Slash commands need no Message Content intent, but the invite link must include 
 
 Commands are registered globally on startup, and Discord can take a while (up to about an hour) to show new or changed global commands. For testing, set the optional `DISCORD_GUILD_ID` env var to a server's ID (Discord's developer mode, then right-click the server, then Copy Server ID) and the commands are registered in just that server instead, where they update instantly. The bot must already be in that server, and with the variable set the commands are not registered globally (clear leftovers from earlier global registrations by restarting without it).
 
-To add a command: add a `CommandSpec(name, description)` to `Commands.all` in `src/Commands.scala`, and a handler with the same name in `Listener.handlers` in `src/Bot.scala`. Tests (and a check at startup) fail if a spec has no handler or the other way round, or if a name or description breaks Discord's rules (name `[\w-]{1,32}` and lowercase, description 1-100 characters, unique names, at most 100 global commands).
+To add a command: define its `CommandSpec(name, description)` once in `src/Commands.scala`, then add a `Command(spec, handler)` to `Listener.commands` in `src/Bot.scala`. That one list generates both the Discord registration and the dispatch, so the name is written in one place only. Tests (and a check at startup) fail if a name or description breaks Discord's rules (name `[\w-]{1,32}` and lowercase, description 1-100 characters, unique names, at most 100 global commands).
 
 ## Running it
 
@@ -103,9 +103,9 @@ To require a minimum later, set `fail_below_min: true` on the **Summarise covera
 
 ## Project layout
 
-- `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`: message handlers, and the slash command `handlers` map (keyed by command name).
-- `src/Commands.scala`: the slash command registry. The `CommandSpec` type (name, description), `Commands.all`, and validation of Discord's rules. Pure logic, no Discord code.
-- `src/Commands.test.scala`: tests for the validation rules, the registry, and that every spec has a handler in `Bot.scala`.
+- `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`: message handlers, and `Listener.commands`, the single list pairing each slash command's spec with its handler.
+- `src/Commands.scala`: the slash command registry. The `CommandSpec` type (name, description), each command's spec as a named val (e.g. `Commands.Ping`), and validation of Discord's rules. Pure logic, no Discord code.
+- `src/Commands.test.scala`: tests for the validation rules and for the commands registered in `Listener.commands` (valid, unique names).
 - `src/Correction.scala`: the generic mechanism. The `Correction` type (correct spelling + pattern), the shared normalisation (invisible characters, URLs) and `Correction.firstMisspelt`, which finds the first matching correction in a given list. Pure logic, no Discord code, and it knows nothing about specific names.
 - `src/Corrections.scala`: the setup. Only the concrete definitions (DoCSoc and IC Hack, each with its pattern and a comment explaining it) and the ordered `Corrections.all` list that the bot enforces.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.

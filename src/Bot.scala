@@ -15,18 +15,16 @@ import net.dv8tion.jda.api.requests.GatewayIntent
 @main def run(): Unit =
   val token = sys.env.getOrElse("DISCORD_TOKEN", sys.error("Set the DISCORD_TOKEN env var"))
 
-  // Fail fast if a command spec and its handler have drifted apart, or the specs break Discord's rules.
-  val problems = Commands.validate(Commands.all)
+  // Fail fast if the registered commands break Discord's rules.
+  val problems = Commands.validate(Listener.commands.map(_.spec))
   require(problems.isEmpty, s"Invalid slash commands: ${problems.mkString("; ")}")
-  val mismatched = Listener.handlers.keySet.diff(Commands.names) ++ Commands.names.diff(Listener.handlers.keySet)
-  require(mismatched.isEmpty, s"Slash commands without a spec or a handler: ${mismatched.mkString(", ")}")
 
   val jda = JDABuilder
     .createLight(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
     .addEventListeners(Listener)
     .build()
 
-  val commandData = Commands.all.map(c => DiscordCommands.slash(c.name, c.description))
+  val commandData = Listener.commands.map(c => DiscordCommands.slash(c.spec.name, c.spec.description))
   sys.env.get("DISCORD_GUILD_ID").filter(_.nonEmpty) match
     case Some(guildId) =>
       jda.awaitReady()
@@ -36,18 +34,24 @@ import net.dv8tion.jda.api.requests.GatewayIntent
     case None =>
       jda.updateCommands().addCommands(commandData*).queue()
 
-/** To add a message feature: write another handler and call it from onMessageReceived. To add a slash command: see
-  * `Commands.scala`, then add a handler to `handlers` below.
+type Handler = SlashCommandInteractionEvent => Unit
+
+/** A slash command: its Discord-facing spec (defined once in `Commands.scala`) and what it does. */
+final case class Command(spec: CommandSpec, handler: Handler)
+
+/** To add a message feature: write another handler and call it from onMessageReceived. To add a slash command: define
+  * its spec in `Commands.scala`, then add a `Command(spec, handler)` to `commands` below.
   */
 object Listener extends ListenerAdapter:
-  type Handler = SlashCommandInteractionEvent => Unit
 
-  /** Slash command handlers by command name. Must have exactly the names in `Commands.all` (checked by a test and at
-    * startup).
+  /** Every slash command the bot offers. The single source of truth: Discord registration and dispatch are both
+    * generated from this list, so they cannot drift apart.
     */
-  val handlers: Map[String, Handler] = Map(
-    "ping" -> (event => event.reply("Pong!").setEphemeral(true).queue())
+  val commands: Vector[Command] = Vector(
+    Command(Commands.Ping, event => event.reply("Pong!").setEphemeral(true).queue())
   )
+
+  private val handlers: Map[String, Handler] = commands.map(c => c.spec.name -> c.handler).toMap
 
   override def onSlashCommandInteraction(event: SlashCommandInteractionEvent): Unit =
     handlers.get(event.getName) match

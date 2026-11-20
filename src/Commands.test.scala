@@ -3,17 +3,16 @@ package docsoc
 class CommandsTests extends munit.FunSuite:
   private def spec(name: String, description: String = "A command") = CommandSpec(name, description)
 
-  test("the real registry follows Discord's rules") {
-    assertEquals(Commands.validate(Commands.all), Vector.empty[String])
+  private val registered = Listener.commands.map(_.spec)
+
+  test("the registered commands follow Discord's rules") {
+    assertEquals(Commands.validate(registered), Vector.empty[String])
   }
-  test("the registry has /ping") {
-    assert(Commands.names.contains("ping"))
+  test("the registered commands include /ping") {
+    assert(registered.contains(Commands.Ping))
   }
-  test("names is derived from all, with no duplicates lost") {
-    assertEquals(Commands.names.size, Commands.all.size)
-  }
-  test("every Bot handler has a spec and every spec has a handler") {
-    assertEquals(Listener.handlers.keySet, Commands.names)
+  test("registered command names are unique, so each has exactly one handler") {
+    assertEquals(registered.map(_.name).distinct, registered.map(_.name))
   }
 
   test("accepts valid names") {
