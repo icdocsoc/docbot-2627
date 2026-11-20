@@ -118,6 +118,8 @@ To require a minimum later, set `fail_below_min: true` on the **Summarise covera
 - `src/Correction.test.scala`: tests for the mechanism, using small local corrections (normalisation, URL and invisible-character handling, first-match ordering).
 - `src/Corrections.test.scala`: tests for the concrete DoCSoc and IC Hack behaviour and their order in `Corrections.all`.
 - `src/Quotes.test.scala`: tests for the quote pool and `Quotes.pick`.
+- `src/Ducks.scala`: rubber duck photos from Wikimedia Commons (`Category:Rubber_ducks`). The `Duck` type, `Ducks.parse` for the API response (image files only, attribution built from the metadata), the random, no-immediate-repeat `Ducks.pick`, and `DuckSource`, a cached source with an injected fetch function. Pure logic, no Discord or HTTP code. Not wired to a command yet.
+- `src/Ducks.test.scala`: tests for the above, using a trimmed real API response as a fixture (no network).
 
 ## Adding a correction
 
