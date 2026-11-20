@@ -28,3 +28,12 @@ class CommandSpecTests extends munit.FunSuite:
     assertEquals(CommandSpec.validate(n(CommandSpec.MaxGlobalCommands)), Vector.empty[String])
     assertEquals(CommandSpec.validate(n(CommandSpec.MaxGlobalCommands + 1)).size, 1)
   }
+
+  test("cooldown is optional and must be positive") {
+    import scala.concurrent.duration._
+    assertEquals(spec("a").cooldown, None)
+    assertEquals(CommandSpec.problems(CommandSpec("a", "d", Some(1.second))), Vector.empty[String])
+    assert(CommandSpec.problems(CommandSpec("a", "d", Some(Duration.Zero))).exists(_.contains("cooldown")))
+    assert(CommandSpec.problems(CommandSpec("a", "d", Some((-5).seconds))).nonEmpty)
+    assert(CommandSpec.validate(Seq(CommandSpec("a", "d", Some(0.seconds)))).nonEmpty)
+  }

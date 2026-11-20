@@ -1,5 +1,6 @@
 package docsoc.commands
 
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import docsoc.CommandSpec
@@ -14,7 +15,13 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
   * `docsoc.ducks` (see `DuckLookup`).
   */
 object RandomDuck:
-  val spec: CommandSpec = CommandSpec("randomduck", "Reply with a photo of a random rubber duck")
+  /** How long a user must wait between `/randomduck` uses. It protects the shared duck lookup and the channel from
+    * spam. Per user and per command, in memory only.
+    */
+  val RandomDuckCooldown: FiniteDuration = 15.seconds
+
+  val spec: CommandSpec =
+    CommandSpec("randomduck", "Reply with a photo of a random rubber duck", Some(RandomDuckCooldown))
   val command: Command = Command(spec, randomDuck)
 
   private val log = org.slf4j.LoggerFactory.getLogger("docsoc.randomduck")
