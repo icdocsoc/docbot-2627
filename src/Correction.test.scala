@@ -13,6 +13,13 @@ class CorrectionTests extends munit.FunSuite:
     assert(!Foo.misspelt("nothing to see"))
     assert(!Foo.misspelt(""))
   }
+  test("alsoAccepted spellings are valid, character for character, and replies still use the main one") {
+    val Baz = Correction("Baz Qux", "(?i)baz[ _-]*qux".r, alsoAccepted = Set("baz qux"))
+    for s <- List("Baz Qux", "baz qux", "go to baz qux!", "Baz Qux and baz qux") do assert(!Baz.misspelt(s), s)
+    for s <- List("BAZ QUX", "baz  qux", "Baz qux", "bazqux", "baz-qux", "baz qux and bazqux") do
+      assert(Baz.misspelt(s), s)
+    assert(Baz.reply("<@1>").contains("**Baz Qux**"))
+  }
   test("URLs are ignored, text outside them is not") {
     for s <- List("https://x/foo", "http://x/foo", "www.foo.com/path", "<https://x/foo>", "see HTTPS://FOO.example/x")
     do assert(!Foo.misspelt(s), s)
