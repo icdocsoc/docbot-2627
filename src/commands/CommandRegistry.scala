@@ -15,7 +15,8 @@ object CommandRegistry:
 
   /** Every slash command the bot offers: the single source of truth. */
   val all: Vector[Command] = Vector(
-    Ping.command
+    Ping.command,
+    RandomDuck.command
   )
 
   private val handlers: Map[String, Handler] = all.map(c => c.spec.name -> c.handler).toMap

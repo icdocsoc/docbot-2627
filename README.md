@@ -2,7 +2,7 @@
 
 The Discord bot for [DoCSoc](https://github.com/icdocsoc), Imperial College's Department of Computing Society. (Yes, the name is spelt that way on purpose. Please don't tell it.)
 
-DoCBoT is meant to grow: this is the home for whatever small, useful, or silly things we want our Discord server to do. For now it polices spelling and has a `/ping` slash command.
+DoCBoT is meant to grow: this is the home for whatever small, useful, or silly things we want our Discord server to do. For now it polices spelling and has `/ping` and `/randomduck` slash commands.
 
 ## What it does today
 
@@ -19,6 +19,15 @@ Invisible/zero-width characters (e.g. `doc\u200Bsoc`) are stripped before checki
 | Command | What it does |
 | --- | --- |
 | `/ping` | Replies "Pong!" (only visible to you). Proves the slash command wiring works. |
+| `/randomduck` | Replies with a photo of a random rubber duck (see below). |
+
+#### `/randomduck`
+Shows a random rubber duck photo from the Wikimedia Commons category [Rubber ducks](https://commons.wikimedia.org/wiki/Category:Rubber_ducks) (direct files only, and only JPEG, PNG, GIF and WebP pictures). It never shows the same duck twice in a row.
+
+- **Attribution:** the images are freely licensed, but many licences (such as CC BY and CC BY-SA) require crediting the author. Every reply is an embed whose title links to the picture's Commons file page, and whose description names the author and licence ("Title by Author, CC BY-SA 4.0, via Wikimedia Commons"). The file page has the full licence details.
+- **Caching:** the list of ducks is fetched on the first use and then kept for 6 hours (the `DuckSource` in `src/commands/RandomDuck.scala`). If a refresh fails, the old list keeps being used. If there is no list at all, the bot replies "The ducks are on strike. Try again later."
+- **Network:** the bot makes outbound HTTPS requests to `commons.wikimedia.org` (a few per refresh, with 5 second connect and 10 second request timeouts). Hosts with a firewall or egress allow-list (a DigitalOcean droplet, say) must allow that host. The pictures themselves are loaded by Discord from `upload.wikimedia.org`, not by the bot.
+- **Replies:** the bot answers straight away with a "thinking" state and edits in the result, so a slow Commons can't hit Discord's 3 second limit. Titles and credits come from contributors, so markdown is escaped, `@` and `<` are defused and replies are sent with no allowed mentions: a duck can't ping anyone.
 
 Slash commands need no Message Content intent, but the invite link must include the `applications.commands` scope (alongside `bot`). If the bot is already in your server, re-invite it with that scope added (no need to kick it first), otherwise the commands won't show up.
 
@@ -109,17 +118,22 @@ To require a minimum later, set `fail_below_min: true` on the **Summarise covera
 - `src/commands/`: the slash commands. Discord glue (JDA types, thin handlers), excluded from coverage; put testable logic outside this directory.
   - `Command.scala`: the `Handler` type and `Command(spec, handler)`.
   - `Ping.scala`: the `/ping` spec and handler. One file per command.
+  - `RandomDuck.scala`: the `/randomduck` spec and handler: defers the reply, looks the duck up on a small daemon thread pool through one shared cached `DuckSource`, and sends the `DuckReply` embed (no allowed mentions) or the failure message. Logs as `docsoc.randomduck`.
   - `CommandRegistry.scala`: `all`, the single list of commands; dispatch by name, the startup validation and the registration with Discord (globally or in `DISCORD_GUILD_ID`).
   - `SlashCommandListener.scala`: the JDA listener that hands slash command interactions to the registry.
-  - `CommandRegistry.test.scala`: tests that the registered commands follow Discord's rules, are unique and include `/ping`.
+  - `CommandRegistry.test.scala`: tests that the registered commands follow Discord's rules, are unique and include `/ping` and `/randomduck`.
 - `src/Correction.scala`: the generic mechanism. The `Correction` type (correct spelling + pattern), the shared normalisation (invisible characters, URLs) and `Correction.firstMisspelt`, which finds the first matching correction in a given list. Pure logic, no Discord code, and it knows nothing about specific names.
 - `src/Corrections.scala`: the setup. Only the concrete definitions (DoCSoc and IC Hack, each with its pattern and a comment explaining it) and the ordered `Corrections.all` list that the bot enforces.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
 - `src/Correction.test.scala`: tests for the mechanism, using small local corrections (normalisation, URL and invisible-character handling, first-match ordering).
 - `src/Corrections.test.scala`: tests for the concrete DoCSoc and IC Hack behaviour and their order in `Corrections.all`.
 - `src/Quotes.test.scala`: tests for the quote pool and `Quotes.pick`.
-- `src/Ducks.scala`: rubber duck photos from Wikimedia Commons (`Category:Rubber_ducks`). The `Duck` type, `Ducks.parse` for the API response (image files only, attribution built from the metadata), the random, no-immediate-repeat `Ducks.pick`, and `DuckSource`, a cached source with an injected fetch function. Pure logic, no Discord or HTTP code. Not wired to a command yet.
+- `src/Ducks.scala`: rubber duck photos from Wikimedia Commons (`Category:Rubber_ducks`). The `Duck` type, `Ducks.parse` for the API response (image files only, attribution built from the metadata), `Ducks.continuation` and `Ducks.mergePages` (Commons returns the file details in several pages), the random, no-immediate-repeat `Ducks.pick`, and `DuckSource`, a cached source with an injected fetch function. Pure logic, no Discord or HTTP code.
 - `src/Ducks.test.scala`: tests for the above, using a trimmed real API response as a fixture (no network).
+- `src/Wikimedia.scala`: the HTTP client for the duck list (`java.net.http`, no extra dependency): User-Agent, timeouts, only HTTP 200 is success, follows the API's `continue` marker, and every failure is a `Left`. The URL is a constructor parameter so tests can use a local server.
+- `src/Wikimedia.test.scala`: tests for the client against an in-process `HttpServer` on localhost (no real network).
+- `src/DuckReply.scala`: what `/randomduck` shows, as plain strings (no JDA types): title, image, credit description with markdown escaped, mentions defused and Discord's length limits applied, plus the failure message.
+- `src/DuckReply.test.scala`: tests for the reply builder (escaping, mentions, truncation).
 
 ## Adding a correction
 
