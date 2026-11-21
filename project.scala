@@ -1,5 +1,5 @@
 // Main
-//> using scala 3.3.9
+//> using scala 3.9.0
 //> using options -Wunused:all
 
 //> using dep com.fasterxml.jackson.core:jackson-core:2.18.12
