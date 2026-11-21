@@ -127,12 +127,12 @@ jobs:
       # -Werror turns the -Wunused:all warnings from project.scala into errors.
       # -coverage-out turns on the Scala 3 compiler's built-in coverage instrumentation, only for this run (never in
       # project.scala, so the Docker image is not instrumented). The exclude regexes match the path without its
-      # extension: test sources and src/Bot (pure Discord wiring that needs a live Discord connection).
+      # extension: test sources, src/Bot and src/commands/ (Discord glue that needs a live Discord connection).
       - name: Run tests with coverage
         run: >
           scala-cli test --server=false --scalac-option -Werror
           --scalac-option -coverage-out:coverage/data
-          --scalac-option '-coverage-exclude-files:.*\.test,.*/Bot'
+          --scalac-option '-coverage-exclude-files:.*\.test,.*/Bot,.*/commands/.*'
           .
 
       # The compiler only writes raw scoverage data; this converts it to Cobertura XML and an HTML report.
@@ -186,7 +186,7 @@ jobs:
             echo
             cat code-coverage-results.md
             echo
-            echo "Excludes the tests and \`src/Bot.scala\` (Discord wiring). The full HTML report is in the \`coverage-report\` artifact of [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+            echo "Excludes the tests, \`src/Bot.scala\` and \`src/commands/\` (Discord wiring). The full HTML report is in the \`coverage-report\` artifact of [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
           } > coverage-summary.md
           cat coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
 

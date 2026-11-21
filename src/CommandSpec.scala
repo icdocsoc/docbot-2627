@@ -1,25 +1,20 @@
 package docsoc
 
-/** The slash commands the bot offers, as plain data.
+/** A slash command as plain data: its name and description.
   *
-  * Design: this file knows nothing about Discord or JDA, so the registry and Discord's naming rules can be unit tested.
-  * Each command's spec is defined once, as a named val here (e.g. [[Commands.Ping]]). The behaviour lives in
-  * `Bot.scala`, where `Listener.commands` pairs each spec with its handler. That single list drives both the Discord
-  * registration and the dispatch, so a name is never written twice. The bot refuses to start, and a test fails, if the
-  * specs in that list break Discord's rules (see [[Commands.validate]]).
-  *
-  * To add a command: define its [[CommandSpec]] here, then add a `Command(spec, handler)` to `Listener.commands`.
+  * Design: this file knows nothing about Discord or JDA, so Discord's naming rules can be unit tested. Each command
+  * defines its spec once, next to its handler, in `src/commands/` (e.g. `commands/Ping.scala`); the registry there
+  * collects them and checks them with [[CommandSpec.validate]]. The bot refuses to start, and a test fails, if the
+  * registered specs break Discord's rules.
   */
 final case class CommandSpec(name: String, description: String)
 
-object Commands:
+object CommandSpec:
 
   /** Discord's limit on global (application-wide) slash commands. */
   val MaxGlobalCommands = 100
 
   private val NamePattern = "^[\\w-]{1,32}$".r
-
-  val Ping: CommandSpec = CommandSpec("ping", "Check that the bot is alive")
 
   /** Why a single spec breaks Discord's rules; empty if it is fine. */
   def problems(spec: CommandSpec): Vector[String] =
