@@ -1,6 +1,7 @@
 package docsoc.commands
 
 import docsoc.CommandSpec
+import docsoc.Cooldown
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import net.dv8tion.jda.api.interactions.commands.build.{Commands => DiscordCommands}
@@ -21,11 +22,20 @@ object CommandRegistry:
 
   private val handlers: Map[String, Handler] = all.map(c => c.spec.name -> c.handler).toMap
 
+  /** One cooldown per command that declares one in its spec, keyed by user id. */
+  private val cooldowns: Map[String, Cooldown] =
+    all.flatMap(c => c.spec.cooldown.map(window => c.spec.name -> Cooldown(window))).toMap
+
   /** Runs the handler of the command named in the event; unknown names get an ephemeral reply. */
   def dispatch(event: SlashCommandInteractionEvent): Unit =
     handlers.get(event.getName) match
-      case Some(handler) => handler(event)
-      case None          => event.reply("Unknown command").setEphemeral(true).queue()
+      case Some(handler) =>
+        // Checked before the handler, so a command that is cooling down never defers or touches the network.
+        cooldowns.get(event.getName).map(_.tryAcquire(event.getUser.getId)) match
+          case Some(Left(remaining)) =>
+            event.reply(Cooldown.tooSoonMessage(remaining)).setEphemeral(true).queue()
+          case _ => handler(event)
+      case None => event.reply("Unknown command").setEphemeral(true).queue()
 
   /** Why the registered specs break Discord's rules; empty if they are fine. */
   def problems: Vector[String] = CommandSpec.validate(all.map(_.spec))

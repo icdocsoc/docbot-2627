@@ -18,3 +18,10 @@ class CommandRegistryTests extends munit.FunSuite:
   test("registered command names are unique, so each has exactly one handler") {
     assertEquals(registered.map(_.name).distinct, registered.map(_.name))
   }
+  test("/randomduck has the 15 second cooldown and /ping has none") {
+    import scala.concurrent.duration._
+    val byName = registered.map(c => c.name -> c.cooldown).toMap
+    assertEquals(byName("randomduck"), Some(15.seconds))
+    assertEquals(byName("randomduck"), Some(RandomDuck.RandomDuckCooldown))
+    assertEquals(byName("ping"), None)
+  }

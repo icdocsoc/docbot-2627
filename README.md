@@ -16,10 +16,13 @@ Known limits: it only checks capitalisation and spacing/punctuation (not typos l
 Invisible/zero-width characters (e.g. `doc\u200Bsoc`) are stripped before checking, so they can't be used to dodge the police.
 
 ### Slash commands
-| Command | What it does |
-| --- | --- |
-| `/ping` | Replies "Pong!" (only visible to you). Proves the slash command wiring works. |
-| `/randomduck` | Replies with a photo of a random rubber duck (see below). |
+| Command | What it does | Cooldown |
+| --- | --- | --- |
+| `/ping` | Replies "Pong!" (only visible to you). Proves the slash command wiring works. | none |
+| `/randomduck` | Replies with a photo of a random rubber duck (see below). | 15 seconds per user |
+
+#### Cooldowns
+A command can declare a cooldown (`cooldown` in its `CommandSpec`; the value for `/randomduck` is `RandomDuck.RandomDuckCooldown`). It is per user and per command: using `/randomduck` does not stop you using `/ping`, and one person's cooldown does not affect anyone else. A user who is too early gets a reply only they can see ("Easy there! The ducks need a moment. Try again in N seconds.") and nothing else happens: no "thinking" state and no request to Wikimedia. Refused attempts do not reset the cooldown, so the wait always ends 15 seconds after the last duck. The cooldowns are kept in memory (at most 10,000 users per command, expired entries are dropped as the bot runs), so they reset when the bot restarts.
 
 #### `/randomduck`
 Shows a random rubber duck photo from the Wikimedia Commons category [Rubber ducks](https://commons.wikimedia.org/wiki/Category:Rubber_ducks) (direct files only, and only JPEG, PNG, GIF and WebP pictures). It never shows the same duck twice in a row.
@@ -33,7 +36,7 @@ Slash commands need no Message Content intent, but the invite link must include 
 
 Commands are registered globally on startup, and Discord can take a while (up to about an hour) to show new or changed global commands. For testing, set the optional `DISCORD_GUILD_ID` env var to a server's ID (Discord's developer mode, then right-click the server, then Copy Server ID) and the commands are registered in just that server instead, where they update instantly. The bot must already be in that server, and with the variable set the commands are not registered globally (clear leftovers from earlier global registrations by restarting without it).
 
-To add a command: create one file under `src/commands/` holding its `CommandSpec(name, description)` and its handler together (copy `src/commands/Ping.scala`), then add its `command` to `CommandRegistry.all` in `src/commands/CommandRegistry.scala`. That one list generates both the Discord registration and the dispatch, so the name is written in one place only. Tests (and a check at startup) fail if a name or description breaks Discord's rules (name `[\w-]{1,32}` and lowercase, description 1-100 characters, unique names, at most 100 global commands).
+To add a command: create one file under `src/commands/` holding its `CommandSpec(name, description)` and its handler together (copy `src/commands/Ping.scala`; give the spec a third argument, `Some(duration)`, for a per-user cooldown, which `CommandRegistry` then enforces before running the handler), then add its `command` to `CommandRegistry.all` in `src/commands/CommandRegistry.scala`. That one list generates both the Discord registration and the dispatch, so the name is written in one place only. Tests (and a check at startup) fail if a name or description breaks Discord's rules (name `[\w-]{1,32}` and lowercase, description 1-100 characters, unique names, at most 100 global commands).
 
 ## Running it
 
@@ -96,7 +99,7 @@ CI measures test coverage with the Scala 3 compiler's built-in scoverage instrum
 - **Artifact**: `coverage-report` (kept 14 days) with `cobertura.xml` and an `html/` report to browse (open `html/index.html`).
 - **Pull request comment**: the same table as a single comment that is updated on every push. It is only posted for pull requests from this repository (the token is read-only for forks); the summary and artifact are always produced.
 
-The tests (`*.test.scala`), `src/Bot.scala` and everything under `src/commands/` are excluded: they are Discord glue (JDA types, thin handlers) that needs a live connection. The testable logic (such as `CommandSpec` and its validation, and all of `src/ducks/`) lives outside `src/commands/`, so it stays in the report. Excluding only the tests, the figures are 86.4% of statements (648 of 750) and 81.1% of branches; with all the exclusions, 95.9% of statements (637 of 664) and 93.6% of branches. The gap in `src/ducks/` is mostly `DuckLookup.Default`, the real wiring (the daemon pool and the live Wikimedia client), which tests replace with fakes. Keep that in mind when reading the numbers: "100%" covers the logic, not the wiring. To change the exclusions, edit the `-coverage-exclude-files` regexes in the **Test** job of `ci.yml` (they match the source path without its `.scala` extension).
+The tests (`*.test.scala`), `src/Bot.scala` and everything under `src/commands/` are excluded: they are Discord glue (JDA types, thin handlers) that needs a live connection. The testable logic (such as `CommandSpec` and its validation, and all of `src/ducks/`) lives outside `src/commands/`, so it stays in the report. Excluding only the tests, the figures are 86.8% of statements (724 of 834) and 81.0% of branches; with all the exclusions, 96.3% of statements (702 of 729) and 94.2% of branches. The gap in `src/ducks/` is mostly `DuckLookup.Default`, the real wiring (the daemon pool and the live Wikimedia client), which tests replace with fakes. Keep that in mind when reading the numbers: "100%" covers the logic, not the wiring. To change the exclusions, edit the `-coverage-exclude-files` regexes in the **Test** job of `ci.yml` (they match the source path without its `.scala` extension).
 
 To produce the same report locally (needs scala-cli and a JDK; results land in `coverage/report/`):
 
@@ -113,15 +116,17 @@ To require a minimum later, set `fail_below_min: true` on the **Summarise covera
 ## Project layout
 
 - `src/Bot.scala`: the entry point (token, JDA with its intents, listeners, command registration) and `Listener`, the message-based spelling police.
-- `src/CommandSpec.scala`: the `CommandSpec` type (name, description) and the validation of Discord's rules (`CommandSpec.validate`). Pure logic, no Discord code.
-- `src/CommandSpec.test.scala`: tests for the validation rules.
+- `src/CommandSpec.scala`: the `CommandSpec` type (name, description, optional cooldown) and the validation of Discord's rules (`CommandSpec.validate`). Pure logic, no Discord code.
+- `src/CommandSpec.test.scala`: tests for the validation rules (including cooldowns).
+- `src/Cooldown.scala`: the per-key `Cooldown` (injected clock, thread-safe, bounded memory, refused attempts don't extend it) and the wording of the wait (`Cooldown.describe`, `Cooldown.tooSoonMessage`). Pure logic, no Discord code.
+- `src/Cooldown.test.scala`: tests with a fake clock (no sleeping): timing, independence of keys, purging and the size bound, concurrent callers, and the wording.
 - `src/commands/`: the slash commands. Discord glue (JDA types, thin handlers), excluded from coverage; put testable logic outside this directory.
   - `Command.scala`: the `Handler` type and `Command(spec, handler)`.
   - `Ping.scala`: the `/ping` spec and handler. One file per command.
-  - `RandomDuck.scala`: the `/randomduck` spec and its thin Discord glue only: defers the reply, calls `DuckLookup.Default.random`, builds the embed from the `DuckReply` (no allowed mentions) or sends the failure message. No duck logic. Logs as `docsoc.randomduck`.
-  - `CommandRegistry.scala`: `all`, the single list of commands; dispatch by name, the startup validation and the registration with Discord (globally or in `DISCORD_GUILD_ID`).
+  - `RandomDuck.scala`: the `/randomduck` spec (with `RandomDuckCooldown`) and its thin Discord glue only: defers the reply, calls `DuckLookup.Default.random`, builds the embed from the `DuckReply` (no allowed mentions) or sends the failure message. No duck logic. Logs as `docsoc.randomduck`.
+  - `CommandRegistry.scala`: `all`, the single list of commands; dispatch by name (with the per-user cooldown check before the handler), the startup validation and the registration with Discord (globally or in `DISCORD_GUILD_ID`).
   - `SlashCommandListener.scala`: the JDA listener that hands slash command interactions to the registry.
-  - `CommandRegistry.test.scala`: tests that the registered commands follow Discord's rules, are unique and include `/ping` and `/randomduck`.
+  - `CommandRegistry.test.scala`: tests that the registered commands follow Discord's rules, are unique, include `/ping` and `/randomduck`, and carry the right cooldowns.
 - `src/Correction.scala`: the generic mechanism. The `Correction` type (correct spelling + pattern), the shared normalisation (invisible characters, URLs) and `Correction.firstMisspelt`, which finds the first matching correction in a given list. Pure logic, no Discord code, and it knows nothing about specific names.
 - `src/Corrections.scala`: the setup. Only the concrete definitions (DoCSoc and IC Hack, each with its pattern and a comment explaining it) and the ordered `Corrections.all` list that the bot enforces.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
