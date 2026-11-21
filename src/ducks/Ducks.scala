@@ -6,6 +6,8 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
 import scala.util.control.NonFatal
 
+import docsoc.Picks
+
 /** One rubber duck photo from Wikimedia Commons, ready to show.
   *
   * @param title
@@ -192,13 +194,8 @@ object Ducks:
   def pick(ducks: Vector[Duck], rng: Random = Random): Duck =
     require(ducks.nonEmpty, "no ducks to pick from")
     lock.synchronized {
-      val n = ducks.size
       val lastIndex = last.map(url => ducks.indexWhere(_.pageUrl == url)).getOrElse(-1)
-      val i =
-        if lastIndex < 0 || n < 2 then rng.nextInt(n)
-        else
-          val j = rng.nextInt(n - 1) // uniform over every index except `lastIndex`
-          if j >= lastIndex then j + 1 else j
+      val i = Picks.indexAvoiding(ducks.size, lastIndex, rng)
       val duck = ducks(i)
       last = Some(duck.pageUrl)
       duck

@@ -6,14 +6,21 @@ package docsoc.ducks
   * Titles and credits come from Wikimedia contributors, so they are untrusted. Markdown characters are escaped (a title
   * can't turn into a link, bold text or a code block) and `@` and `<` are defused so a name like `@everyone` or
   * `<@123>` can't ping anyone. The bot also sends the reply with no allowed mentions, as a second line of defence.
+  *
+  * The `caption` is different: it comes from our own pool (`DuckCaptions`) with the requester's mention filled in, so
+  * it is not escaped (a mention must stay a mention). It is sent as the message text next to the embed, not inside it,
+  * and is cut to Discord's message limit.
   */
-final case class DuckReply(title: String, imageUrl: String, description: String, pageUrl: String)
+final case class DuckReply(title: String, imageUrl: String, description: String, pageUrl: String, caption: String)
 
 object DuckReply:
 
   /** Discord's limits for an embed title and description. */
   val MaxTitle = 256
   val MaxDescription = 4096
+
+  /** Discord's limit for the text of a message (the caption). */
+  val MaxCaption = 2000
 
   /** The friendly message for when no duck could be fetched. */
   val failureMessage: String = "The ducks are on strike. Try again later."
@@ -58,10 +65,20 @@ object DuckReply:
       case c    => c.toString
     }
 
-  /** The reply for a duck: the title (linking to the Commons page, set by the bot), the picture, and a description
-    * crediting the author, in the form `[Title](page) by Credit, via Wikimedia Commons`.
+  /** The caption as sent: trimmed and cut to [[MaxCaption]] characters (with `...`), never inside a surrogate pair. */
+  def captionText(caption: String): String =
+    val text = caption.trim
+    if text.length <= MaxCaption then text
+    else
+      var end = MaxCaption - Ellipsis.length
+      if Character.isHighSurrogate(text.charAt(end - 1)) then end -= 1
+      text.substring(0, end).stripTrailing() + Ellipsis
+
+  /** The reply for a duck: the title (linking to the Commons page, set by the bot), the picture, a description
+    * crediting the author, in the form `[Title](page) by Credit, via Wikimedia Commons`, and the caption (sent as the
+    * message text, outside the embed so the credit line stays in the description).
     */
-  def of(duck: Duck): DuckReply =
+  def of(duck: Duck, caption: String): DuckReply =
     val title = Option(sanitize(duck.title, MaxTitle)).filter(_.nonEmpty).getOrElse(FallbackTitle)
     val credit = sanitize(duck.credit, MaxCredit)
     val link = linkSafe(duck.pageUrl)
@@ -69,4 +86,4 @@ object DuckReply:
     val linked =
       if link.length <= MaxLinkLength then s"[$shownTitle]($link)" else shownTitle
     val description = s"$linked by $credit, via Wikimedia Commons"
-    DuckReply(title, duck.imageUrl.trim, description, duck.pageUrl.trim)
+    DuckReply(title, duck.imageUrl.trim, description, duck.pageUrl.trim, captionText(caption))
