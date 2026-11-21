@@ -14,35 +14,42 @@ import scala.util.control.NonFatal
   *
   * The lookup runs on `executor`, so a slow Commons never blocks the calling thread (JDA's event thread). Whatever goes
   * wrong (the source reports a problem or throws, the executor rejects the task), `random` never throws and `onDone` is
-  * called exactly once.
+  * called exactly once. A success carries a snarky caption (the failure message carries none).
   *
   * @param source
   *   the cached duck list
   * @param executor
   *   where lookups run
+  * @param caption
+  *   makes the caption for a requester's mention (injectable for tests; the default draws from [[DuckCaptions]])
   */
-final class DuckLookup(source: DuckSource, executor: Executor):
+final class DuckLookup(
+    source: DuckSource,
+    executor: Executor,
+    caption: String => String = DuckCaptions.pick(_)
+):
 
   private val log = org.slf4j.LoggerFactory.getLogger("docsoc.ducks")
 
-  /** Look a duck up on the executor and pass the result to `onDone`: `Right` with the reply to show, or `Left` with the
-    * message to show instead. `onDone` runs on the executor's thread (or on the caller's if the executor runs tasks
-    * inline) and is never called twice: if it throws, that is logged and swallowed.
+  /** Look a duck up on the executor and pass the result to `onDone`: `Right` with the reply to show (its caption may
+    * contain `mention`, the requester's mention string), or `Left` with the message to show instead. `onDone` runs on
+    * the executor's thread (or on the caller's if the executor runs tasks inline) and is never called twice: if it
+    * throws, that is logged and swallowed.
     */
-  def random(onDone: Either[String, DuckReply] => Unit): Unit =
+  def random(mention: String, onDone: Either[String, DuckReply] => Unit): Unit =
     def finish(result: Either[String, DuckReply]): Unit =
       try onDone(result)
       catch case NonFatal(e) => log.error("The duck callback failed", e)
-    try executor.execute(() => finish(lookup()))
+    try executor.execute(() => finish(lookup(mention)))
     catch
       case NonFatal(e) =>
         log.error("Could not start the duck lookup", e)
         finish(Left(DuckReply.failureMessage))
 
-  private def lookup(): Either[String, DuckReply] =
+  private def lookup(mention: String): Either[String, DuckReply] =
     try
       source.next() match
-        case Right(duck)   => Right(DuckReply.of(duck))
+        case Right(duck)   => Right(DuckReply.of(duck, caption(mention)))
         case Left(problem) =>
           log.warn(s"No duck available: $problem")
           Left(DuckReply.failureMessage)
