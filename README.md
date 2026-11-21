@@ -2,7 +2,7 @@
 
 The Discord bot for [DoCSoc](https://github.com/icdocsoc), Imperial College's Department of Computing Society. (Yes, the name is spelt that way on purpose. Please don't tell it.)
 
-DoCBoT is meant to grow: this is the home for whatever small, useful, or silly things we want our Discord server to do. For now it does exactly one thing.
+DoCBoT is meant to grow: this is the home for whatever small, useful, or silly things we want our Discord server to do. For now it polices spelling and has a `/ping` slash command.
 
 ## What it does today
 
@@ -15,6 +15,17 @@ Known limits: it only checks capitalisation and spacing/punctuation (not typos l
 
 Invisible/zero-width characters (e.g. `doc\u200Bsoc`) are stripped before checking, so they can't be used to dodge the police.
 
+### Slash commands
+| Command | What it does |
+| --- | --- |
+| `/ping` | Replies "Pong!" (only visible to you). Proves the slash command wiring works. |
+
+Slash commands need no Message Content intent, but the invite link must include the `applications.commands` scope (alongside `bot`). If the bot is already in your server, re-invite it with that scope added (no need to kick it first), otherwise the commands won't show up.
+
+Commands are registered globally on startup, and Discord can take a while (up to about an hour) to show new or changed global commands. For testing, set the optional `DISCORD_GUILD_ID` env var to a server's ID (Discord's developer mode, then right-click the server, then Copy Server ID) and the commands are registered in just that server instead, where they update instantly. The bot must already be in that server, and with the variable set the commands are not registered globally (clear leftovers from earlier global registrations by restarting without it).
+
+To add a command: create one file under `src/commands/` holding its `CommandSpec(name, description)` and its handler together (copy `src/commands/Ping.scala`), then add its `command` to `CommandRegistry.all` in `src/commands/CommandRegistry.scala`. That one list generates both the Discord registration and the dispatch, so the name is written in one place only. Tests (and a check at startup) fail if a name or description breaks Discord's rules (name `[\w-]{1,32}` and lowercase, description 1-100 characters, unique names, at most 100 global commands).
+
 ## Running it
 
 Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK.
@@ -22,11 +33,14 @@ Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK.
 1. Create an application at https://discord.com/developers/applications and add a Bot.
 2. Under **Bot → Privileged Gateway Intents**, enable **Message Content Intent**.
 3. Invite it to the server with the `bot` scope and the *Read Messages*, *Send Messages* and *Read Message History* permissions.
-4. Start it:
+4. Add the `applications.commands` scope to the invite too, for the slash commands (see "Slash commands").
+5. Start it:
 
 ```bash
 DISCORD_TOKEN=your-token scala-cli run .
 ```
+
+To register slash commands in one server only (instant updates, for testing), also set `DISCORD_GUILD_ID=your-server-id`.
 
 Never commit the token.
 
@@ -73,13 +87,13 @@ CI measures test coverage with the Scala 3 compiler's built-in scoverage instrum
 - **Artifact**: `coverage-report` (kept 14 days) with `cobertura.xml` and an `html/` report to browse (open `html/index.html`).
 - **Pull request comment**: the same table as a single comment that is updated on every push. It is only posted for pull requests from this repository (the token is read-only for forks); the summary and artifact are always produced.
 
-The tests (`*.test.scala`) and `src/Bot.scala` are excluded: `Bot.scala` is pure Discord wiring that needs a live connection. Without that exclusion the figures are 90.9% of statements (159 of 175) and 66.7% of branches; with it, 100% of both (159 of 159 statements, 4 of 4 branches). Keep that in mind when reading the numbers: "100%" covers the logic, not the wiring. To change the exclusions, edit the `-coverage-exclude-files` regexes in the **Test** job of `ci.yml` (they match the source path without its `.scala` extension).
+The tests (`*.test.scala`), `src/Bot.scala` and everything under `src/commands/` are excluded: they are Discord glue (JDA types, thin handlers) that needs a live connection. The testable logic (such as `CommandSpec` and its validation) lives outside `src/commands/`, so it stays in the report. Excluding only the tests, the figures are 80.7% of statements (205 of 254) and 45.5% of branches; with all the exclusions, 100% of both (197 of 197 statements). Keep that in mind when reading the numbers: "100%" covers the logic, not the wiring. To change the exclusions, edit the `-coverage-exclude-files` regexes in the **Test** job of `ci.yml` (they match the source path without its `.scala` extension).
 
 To produce the same report locally (needs scala-cli and a JDK; results land in `coverage/report/`):
 
 ```bash
 rm -rf coverage   # drop data from earlier runs
-scala-cli test . --scalac-option -coverage-out:coverage/data --scalac-option '-coverage-exclude-files:.*\.test,.*/Bot'
+scala-cli test . --scalac-option -coverage-out:coverage/data --scalac-option '-coverage-exclude-files:.*\.test,.*/Bot,.*/commands/.*'
 scala-cli run .github/coverage/Report.scala -- coverage/data . coverage/report
 ```
 
@@ -89,7 +103,15 @@ To require a minimum later, set `fail_below_min: true` on the **Summarise covera
 
 ## Project layout
 
-- `src/Bot.scala`: Discord wiring (JDA). New features hook in via `Listener`.
+- `src/Bot.scala`: the entry point (token, JDA with its intents, listeners, command registration) and `Listener`, the message-based spelling police.
+- `src/CommandSpec.scala`: the `CommandSpec` type (name, description) and the validation of Discord's rules (`CommandSpec.validate`). Pure logic, no Discord code.
+- `src/CommandSpec.test.scala`: tests for the validation rules.
+- `src/commands/`: the slash commands. Discord glue (JDA types, thin handlers), excluded from coverage; put testable logic outside this directory.
+  - `Command.scala`: the `Handler` type and `Command(spec, handler)`.
+  - `Ping.scala`: the `/ping` spec and handler. One file per command.
+  - `CommandRegistry.scala`: `all`, the single list of commands; dispatch by name, the startup validation and the registration with Discord (globally or in `DISCORD_GUILD_ID`).
+  - `SlashCommandListener.scala`: the JDA listener that hands slash command interactions to the registry.
+  - `CommandRegistry.test.scala`: tests that the registered commands follow Discord's rules, are unique and include `/ping`.
 - `src/Correction.scala`: the generic mechanism. The `Correction` type (correct spelling + pattern), the shared normalisation (invisible characters, URLs) and `Correction.firstMisspelt`, which finds the first matching correction in a given list. Pure logic, no Discord code, and it knows nothing about specific names.
 - `src/Corrections.scala`: the setup. Only the concrete definitions (DoCSoc and IC Hack, each with its pattern and a comment explaining it) and the ordered `Corrections.all` list that the bot enforces.
 - `src/Quotes.scala`: the shared pool of reply templates (`{correct}` and `{user}` placeholders) and the random, no-immediate-repeat `Quotes.pick`. Reusable for other corrections.
@@ -104,5 +126,5 @@ To police another name, edit only `src/Corrections.scala`: define a `Correction(
 ## Adding a feature
 
 1. Put the logic in its own file under `src/`, keeping it free of Discord types where you can so it can be unit tested.
-2. Call it from `Listener` in `Bot.scala` (or add another listener, and any extra gateway intents, in `run`).
+2. Call it from `Listener` in `Bot.scala` (or add another listener, and any extra gateway intents, in `run`). For a slash command, add a file under `src/commands/` and list it in `CommandRegistry.all` instead, keeping any logic worth testing outside that directory.
 3. Add a section to "What it does today" above.
