@@ -40,7 +40,7 @@ To add a command: create one file under `src/commands/` holding its `CommandSpec
 
 ## Running it
 
-Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK.
+Requires [scala-cli](https://scala-cli.virtuslab.org/) and a JDK (17 or newer; CI and the Docker image run JDK 25). The project is pinned to Scala 3.9.0, the 3.9 LTS line, in `project.scala`; scala-cli downloads the compiler itself.
 
 1. Create an application at https://discord.com/developers/applications and add a Bot.
 2. Under **Bot → Privileged Gateway Intents**, enable **Message Content Intent**.
@@ -99,7 +99,7 @@ CI measures test coverage with the Scala 3 compiler's built-in scoverage instrum
 - **Artifact**: `coverage-report` (kept 14 days) with `cobertura.xml` and an `html/` report to browse (open `html/index.html`).
 - **Pull request comment**: the same table as a single comment that is updated on every push. It is only posted for pull requests from this repository (the token is read-only for forks); the summary and artifact are always produced.
 
-The tests (`*.test.scala`), `src/Bot.scala` and everything under `src/commands/` are excluded: they are Discord glue (JDA types, thin handlers) that needs a live connection. The testable logic (such as `CommandSpec` and its validation, and all of `src/ducks/`) lives outside `src/commands/`, so it stays in the report. Excluding only the tests, the figures are 86.8% of statements (724 of 834) and 81.0% of branches; with all the exclusions, 96.3% of statements (702 of 729) and 94.2% of branches. The gap in `src/ducks/` is mostly `DuckLookup.Default`, the real wiring (the daemon pool and the live Wikimedia client), which tests replace with fakes. Keep that in mind when reading the numbers: "100%" covers the logic, not the wiring. To change the exclusions, edit the `-coverage-exclude-files` regexes in the **Test** job of `ci.yml` (they match the source path without its `.scala` extension).
+The tests (`*.test.scala`), `src/Bot.scala` and everything under `src/commands/` are excluded: they are Discord glue (JDA types, thin handlers) that needs a live connection. The testable logic (such as `CommandSpec` and its validation, and all of `src/ducks/`) lives outside `src/commands/`, so it stays in the report. Excluding only the tests, the figures are 86.7% of statements (699 of 806) and 81.0% of branches; with all the exclusions, 96.3% of statements (677 of 703) and 94.2% of branches. The gap in `src/ducks/` is mostly `DuckLookup.Default`, the real wiring (the daemon pool and the live Wikimedia client), which tests replace with fakes. Keep that in mind when reading the numbers: "100%" covers the logic, not the wiring. To change the exclusions, edit the `-coverage-exclude-files` regexes in the **Test** job of `ci.yml` (they match the source path without its `.scala` extension).
 
 To produce the same report locally (needs scala-cli and a JDK; results land in `coverage/report/`):
 
