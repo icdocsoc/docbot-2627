@@ -1,4 +1,4 @@
-//> using scala 3.3.9
+//> using scala 3.9.0
 //> using dep org.scoverage::scalac-scoverage-reporter:2.5.2
 
 // Turns the scoverage data written by `scalac -coverage-out:<dir>` into reports. The Scala 3 compiler only emits the
