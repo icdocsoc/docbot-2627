@@ -4,6 +4,7 @@
 
 //> using dep com.fasterxml.jackson.core:jackson-core:2.18.12
 //> using dep com.fasterxml.jackson.core:jackson-databind:2.18.12
+//> using dep com.lihaoyi::ujson:4.4.3
 //> using dep net.dv8tion:JDA:5.6.1
 //> using dep org.slf4j:slf4j-simple:2.0.20
 
