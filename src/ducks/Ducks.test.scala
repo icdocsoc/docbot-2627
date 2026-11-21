@@ -1,4 +1,4 @@
-package docsoc
+package docsoc.ducks
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -275,7 +275,67 @@ class DucksTests extends munit.FunSuite:
     assert(Ducks.RequestUrl.startsWith("https://commons.wikimedia.org/w/api.php?"))
     assert(Ducks.RequestUrl.contains("gcmtitle=Category:Rubber_ducks"))
     assert(Ducks.RequestUrl.contains("iiurlwidth=800"))
+    assert(!Ducks.RequestUrl.contains("|"), "java.net.URI rejects a raw pipe")
+    assert(Ducks.RequestUrl.contains("iiprop=url%7Cmime%7Cextmetadata"))
+    java.net.URI.create(Ducks.RequestUrl) // must be a valid URI
     assert(Ducks.UserAgent.startsWith("DoCBoT/"))
+  }
+
+  // --- continuation, mergePages ---
+
+  test("continuation turns the continue object into query parameters") {
+    assertEquals(
+      Ducks.continuation("""{"continue": {"iicontinue": "A_b.jpg|20130612180058", "continue": "||"}, "query": {}}"""),
+      Some("iicontinue=A_b.jpg%7C20130612180058&continue=%7C%7C")
+    )
+  }
+  test("continuation is None for a complete, odd or invalid response") {
+    assertEquals(Ducks.continuation(response(page("File:A.png", "image/png"))), None)
+    assertEquals(Ducks.continuation("""{"continue": {}}"""), None)
+    assertEquals(Ducks.continuation("""{"continue": "x"}"""), None)
+    assertEquals(Ducks.continuation("[1]"), None)
+    assertEquals(Ducks.continuation("{nope"), None)
+  }
+  test("continuation sees the continue marker of the real fixture") {
+    assertEquals(
+      Ducks.continuation(fixture),
+      Some("iicontinue=Yellow_rubber_duck.jpg%7C20170412090628&continue=%7C%7C")
+    )
+  }
+
+  private def pagesBody(continue: Option[String], pages: (String, String)*) =
+    val c = continue.fold("")(v => s""""continue": {"iicontinue": "$v", "continue": "||"}, """)
+    s"""{$c"query": {"pages": {${pages.map((id, p) => s""""$id": $p""").mkString(",")}}}}"""
+  private val noInfo = (t: String) => s"""{"title": "$t"}"""
+
+  test("mergePages takes the entry with imageinfo for each page, keeping the first's order") {
+    val first = pagesBody(
+      Some("x"),
+      "1" -> page("File:One.jpg", "image/jpeg"),
+      "2" -> noInfo("File:Two.jpg"),
+      "3" -> noInfo("File:Three.jpg")
+    )
+    val second = pagesBody(None, "2" -> page("File:Two.jpg", "image/jpeg"), "3" -> page("File:Three.jpg", "image/png"))
+    val merged = Ducks.mergePages(first, second).toOption.get
+    assertEquals(Ducks.parse(merged).toOption.get.map(_.title), Vector("One", "Two", "Three"))
+    assertEquals(Ducks.continuation(merged), None)
+  }
+  test("mergePages keeps the first entry when the second has none, and adds pages only in the second") {
+    val first = pagesBody(Some("x"), "1" -> page("File:One.jpg", "image/jpeg"))
+    val second = pagesBody(Some("y"), "1" -> noInfo("File:One.jpg"), "4" -> page("File:Four.jpg", "image/jpeg"))
+    val merged = Ducks.mergePages(first, second).toOption.get
+    assertEquals(Ducks.parse(merged).toOption.get.map(_.title), Vector("One", "Four"))
+    assertEquals(Ducks.continuation(merged), Some("iicontinue=y&continue=%7C%7C"))
+  }
+  test("mergePages rejects a next page that is an API error or not JSON") {
+    val first = pagesBody(Some("x"), "1" -> page("File:One.jpg", "image/jpeg"))
+    assert(Ducks.mergePages(first, """{"error": {"code": "ratelimited"}}""").isLeft)
+    assert(Ducks.mergePages(first, "nope").isLeft)
+    assert(Ducks.mergePages("[1]", first).isLeft)
+  }
+  test("mergePages copes with a first page that has no query") {
+    val second = pagesBody(None, "1" -> page("File:One.jpg", "image/jpeg"))
+    assertEquals(Ducks.parse(Ducks.mergePages("""{"batchcomplete": ""}""", second).toOption.get).map(_.size), Right(1))
   }
 
   // --- cleanTitle, stripHtml, credit ---

@@ -1,4 +1,4 @@
-package docsoc
+package docsoc.ducks
 
 import java.time.Instant
 
@@ -29,18 +29,24 @@ final case class Duck(title: String, imageUrl: String, pageUrl: String, credit: 
   *   - `query.pages` is an object keyed by page id. Each page has a `title` (`File:Name with spaces.jpg`) and an
   *     `imageinfo` array whose first element has `thumburl`, `url`, `descriptionurl`, `mime` and `extmetadata`.
   *   - The category also holds audio, GIMP files and so on, so entries are filtered by mime type.
-  *   - Commons only returns `imageinfo` (with `extmetadata`) for the first 50 files per request and sets a top-level
-  *     `continue` marker for the rest. Pages beyond that come back with a title only. [[Ducks.parse]] skips them, so
-  *     the pool is those first 50 files minus the non-images.
+  *   - With `extmetadata` requested, Commons returns `imageinfo` for only some of the files per request (about 50; it
+  *     was 50, then 45, in two checks) and sets a top-level `continue` object for the rest. Pages beyond that come back
+  *     with a title only. We checked whether `iilimit=max` fixes this: it does not (the response still held 45 of 54
+  *     imageinfos plus a `continue`). So the client follows `continue`: [[Ducks.continuation]] turns it into the extra
+  *     query parameters for the next request and [[Ducks.mergePages]] folds each response into one, before
+  *     [[Ducks.parse]] sees it. [[Ducks.parse]] itself still skips entries without `imageinfo`.
   *   - Only direct files are used, not the subcategories.
   */
 object Ducks:
 
-  /** The request that lists the ducks: files directly in the category, with 800px thumbnails and licence metadata. */
+  /** The request that lists the ducks: files directly in the category, with 800px thumbnails and licence metadata.
+    *
+    * The `|` separators are written as `%7C`: `java.net.URI` rejects a raw `|`.
+    */
   val RequestUrl: String =
     "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=categorymembers" +
       "&gcmtitle=Category:Rubber_ducks&gcmtype=file&gcmlimit=max&prop=imageinfo" +
-      "&iiprop=url|mime|extmetadata&iiurlwidth=800"
+      "&iiprop=url%7Cmime%7Cextmetadata&iiurlwidth=800"
 
   /** Wikimedia asks automated clients to identify themselves, otherwise they may be throttled or blocked. */
   val UserAgent: String = "DoCBoT/1.0 (https://github.com/icdocsoc/docbot-2627)"
@@ -121,6 +127,42 @@ object Ducks:
               val ducks = pages.toVector.flatMap(_.values).flatMap(toDuck)
               Either.cond(ducks.nonEmpty, ducks, "The duck list contained no usable images")
     }
+
+  /** The query string (without a leading `&`) that asks Commons for the next batch of `imageinfo`, taken from the
+    * top-level `continue` object of a response; `None` if the response is complete (or not JSON).
+    */
+  def continuation(json: String): Option[String] =
+    try
+      val parts = ujson.read(json).objOpt.flatMap(_.get("continue")).flatMap(_.objOpt).toVector.flatMap { c =>
+        c.toVector.flatMap((k, v) => v.strOpt.map(value => s"${enc(k)}=${enc(value)}"))
+      }
+      Option.when(parts.nonEmpty)(parts.mkString("&"))
+    catch case NonFatal(_) => None
+
+  private def enc(s: String): String = java.net.URLEncoder.encode(s, "UTF-8")
+
+  /** Folds two responses to the same request into one: the pages of both, taking for each page the entry that has
+    * `imageinfo`. The result carries the `continue` marker of `next` (none if `next` is complete), so it can be merged
+    * again. `Left` if either body isn't a JSON object.
+    */
+  def mergePages(first: String, next: String): Either[String, String] =
+    try
+      val a = ujson.read(first)
+      val b = ujson.read(next)
+      b.obj.get("error").foreach(_ => throw IllegalArgumentException("the next page was an API error"))
+      def pagesOf(v: ujson.Value) = v.obj.get("query").flatMap(_.objOpt).flatMap(_.get("pages")).flatMap(_.objOpt)
+      val merged = scala.collection.mutable.LinkedHashMap[String, ujson.Value]()
+      pagesOf(a).foreach(_.foreach((k, v) => merged(k) = v))
+      pagesOf(b).foreach(_.foreach { (k, v) =>
+        val hasInfo = v.objOpt.exists(_.contains("imageinfo"))
+        if hasInfo || !merged.contains(k) then merged(k) = v
+      })
+      b.obj.get("continue") match
+        case Some(c) => a.obj("continue") = c
+        case None    => a.obj.remove("continue")
+      a.obj("query") = ujson.Obj("pages" -> ujson.Obj.from(merged))
+      Right(ujson.write(a))
+    catch case NonFatal(e) => Left(s"Could not combine the pages of the duck list: ${e.getMessage}")
 
   private def toDuck(page: ujson.Value): Option[Duck] =
     for
