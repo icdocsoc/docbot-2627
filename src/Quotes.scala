@@ -148,12 +148,7 @@ object Quotes:
   /** A uniformly random template (never the same one twice in a row), with placeholders filled in. */
   def pick(correct: String, mention: String, rng: Random = Random): String =
     val i = lock.synchronized {
-      val n = templates.size
-      val next =
-        if last < 0 || n < 2 then rng.nextInt(n)
-        else
-          val j = rng.nextInt(n - 1) // uniform over every index except `last`
-          if j >= last then j + 1 else j
+      val next = Picks.indexAvoiding(templates.size, last, rng)
       last = next
       next
     }
