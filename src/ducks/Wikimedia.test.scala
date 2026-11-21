@@ -1,4 +1,4 @@
-package docsoc
+package docsoc.ducks
 
 import java.net.InetAddress
 import java.net.InetSocketAddress

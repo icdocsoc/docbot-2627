@@ -1,4 +1,4 @@
-package docsoc
+package docsoc.ducks
 
 class DuckReplyTests extends munit.FunSuite:
 

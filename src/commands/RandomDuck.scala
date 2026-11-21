@@ -7,9 +7,9 @@ import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import docsoc.CommandSpec
-import docsoc.DuckReply
-import docsoc.DuckSource
-import docsoc.Wikimedia
+import docsoc.ducks.DuckReply
+import docsoc.ducks.DuckSource
+import docsoc.ducks.Wikimedia
 import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.entities.Message
 import net.dv8tion.jda.api.entities.MessageEmbed

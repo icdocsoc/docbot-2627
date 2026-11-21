@@ -1,4 +1,4 @@
-package docsoc
+package docsoc.ducks
 
 import java.io.IOException
 import java.net.URI

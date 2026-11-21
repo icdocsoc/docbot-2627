@@ -1,4 +1,4 @@
-package docsoc
+package docsoc.ducks
 
 /** What the bot shows for a duck: plain strings that fit Discord's embed limits, with no JDA types so it can be unit
   * tested (`Bot.scala` turns it into an embed).
