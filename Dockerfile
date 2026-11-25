@@ -10,7 +10,7 @@ COPY src ./src
 RUN mkdir -p /out && scala-cli --power package . --server=false --assembly --main-class docsoc.run -o /out/docbot.jar
 
 # ---- Runtime: just a JRE and the jar ----
-FROM eclipse-temurin:25-jre@sha256:945247f9d092703e0c6be92243ef3c51640229e23ab34d353c8dcdc73e6cd4e6
+FROM eclipse-temurin:25-jre@sha256:4ed132f6832e9804b123e89a849a7b4502756ae64a4ee08ebab939d9d5d0a9fa
 RUN useradd --system --no-create-home docbot
 COPY --from=build /out/docbot.jar /app/docbot.jar
 USER docbot
